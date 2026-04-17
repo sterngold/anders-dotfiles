@@ -1,0 +1,14 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-keybindings.json",
+  "bindings": [
+    {
+      "context": "Chat",
+      "bindings": {
+        "meta+p": "chat:modelPicker",
+        "meta+t": "chat:thinkingToggle",
+        "meta+g": "chat:externalEditor",
+        "shift+tab": "chat:cycleMode"
+      }
+    }
+  ]
+}

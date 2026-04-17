@@ -1,0 +1,187 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(mv *)",
+      "Bash(cp *)",
+      "Bash(cat *)",
+      "Bash(open *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(mkdir *)",
+      "Bash(rm *.pyc)",
+      "Bash(rm -r __pycache__*)",
+      "Bash(rm -r .build*)",
+      "Bash(rm -r node_modules*)",
+      "Bash(rm /tmp/*)",
+      "Bash(npm *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git show*)",
+      "Bash(git stash*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(git rev-parse*)",
+      "Bash(git remote*)",
+      "Bash(gh *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(which *)",
+      "Bash(echo *)",
+      "Bash(pwd *)",
+      "Bash(tar *)",
+      "Bash(unzip *)",
+      "Bash(touch *)",
+      "Bash(pytest *)",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "mcp__google-gmail__gmail_list_drafts",
+      "mcp__google-gmail__gmail_list_labels",
+      "mcp__google-gmail__gmail_get_profile",
+      "mcp__google-gmail__gmail_read_message",
+      "mcp__google-gmail__gmail_read_thread",
+      "mcp__google-gmail__gmail_search_messages",
+      "mcp__notebooklm__*",
+      "mcp__playwright__*",
+      "mcp__supabase__*",
+      "mcp__ide__*",
+      "mcp__plugin_telegram_telegram__*",
+      "NotebookEdit"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(cat */.env*)",
+      "Bash(cat */secrets/*)",
+      "Bash(cat *credentials*)",
+      "Write(*/.env*)",
+      "Edit(*/.env*)",
+      "Write(*/secrets/*)",
+      "Edit(*/secrets/*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rm -f /tmp/claude-statusline/mode /tmp/claude-statusline/thinking /tmp/claude-statusline/style"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -q 'rsync.*--delete'; then echo 'BLOCKED: rsync --delete is hard-blocked. Use rsync without --delete, or manage deletions manually.' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Write|Edit|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/guard-sensitive-paths.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/guard-agent-model.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/skill-memory-reminder.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "EnterPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo plan > /tmp/claude-statusline/mode"
+          }
+        ]
+      },
+      {
+        "matcher": "ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rm -f /tmp/claude-statusline/mode"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/validate-file.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PROMPT=$(echo \"$CLAUDE_USER_PROMPT\" | tr '[:upper:]' '[:lower:]'); case \"$PROMPT\" in */effort\\ ultra*|*ultrathink*) echo ultra > /tmp/claude-statusline/thinking;; */effort\\ high*) echo high > /tmp/claude-statusline/thinking;; */effort\\ low*|*/effort\\ min*) echo low > /tmp/claude-statusline/thinking;; */effort*) echo auto > /tmp/claude-statusline/thinking;; esac"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh"
+  },
+  "enabledPlugins": {
+    "document-skills@anthropic-agent-skills": true,
+    "claude-md-management@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "telegram@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "hookify@claude-plugins-official": true,
+    "firecrawl@claude-plugins-official": false,
+    "swift-lsp@claude-plugins-official": false,
+    "frontend-design@claude-plugins-official": false,
+    "playwright@claude-plugins-official": true,
+    "figma@claude-plugins-official": false
+  },
+  "voiceEnabled": true,
+  "autoDreamEnabled": true,
+  "model": "sonnet",
+  "tui": "fullscreen",
+  "skillListingBudgetFraction": 0.005,
+  "cleanupPeriodDays": 90
+}

@@ -1,4 +1,6 @@
 {
+  "cleanupPeriodDays": 90,
+  "skillListingBudgetFraction": 0.005,
   "permissions": {
     "allow": [
       "Bash(ls *)",
@@ -178,10 +180,7 @@
     "playwright@claude-plugins-official": true,
     "figma@claude-plugins-official": false
   },
-  "voiceEnabled": true,
-  "autoDreamEnabled": true,
-  "model": "sonnet",
   "tui": "fullscreen",
-  "skillListingBudgetFraction": 0.005,
-  "cleanupPeriodDays": 90
+  "autoDreamEnabled": true,
+  "voiceEnabled": true
 }

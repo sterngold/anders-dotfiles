@@ -182,5 +182,6 @@
   },
   "tui": "fullscreen",
   "autoDreamEnabled": true,
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "sonnet"
 }

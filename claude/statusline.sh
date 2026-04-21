@@ -1,7 +1,7 @@
 #!/bin/bash
-# Sterngold Status Line — Spectrum colors from sterngold.nl design system
+# Sterngold Status Line — C64 palette (ccstatusline guide, Apr 2026)
 # Reads JSON from stdin (Claude Code status line protocol)
-# Green (#3ecf8e→78) = growth | Blue (#4da8da→74) = depth | Pink (#e87da1→175) = vulnerability | Gold (#f59e0b→214) = warmth
+# Primary purple (#7869C4→111) | Light blue (153) | Emphasis purple (177) | Warning yellow (#D5DF7C→228) | Gray (#9A9A9A→249) | Terra cotta (#9A6759→131)
 
 CACHE_DIR="/tmp/claude-statusline"
 LOG="$CACHE_DIR/error.log"
@@ -13,16 +13,16 @@ export PATH="/usr/local/bin:/Library/Frameworks/Python.framework/Versions/3.12/b
 # Read JSON from stdin
 INPUT=$(cat)
 
-# 256-color codes matching Sterngold spectrum
-G="\033[38;5;78m"   # spectrum green
-B="\033[38;5;74m"   # spectrum blue
-P="\033[38;5;175m"  # spectrum pink
-Y="\033[38;5;214m"  # spectrum gold
-W="\033[38;5;252m"  # light text
-D="\033[38;5;240m"  # dim separator
-RED="\033[38;5;196m"
+# 256-color codes — C64 palette
+G="\033[38;5;111m"  # primary purple (positive/good state)
+B="\033[38;5;153m"  # light blue (info/branches)
+P="\033[38;5;177m"  # emphasis purple (opus/special)
+Y="\033[38;5;228m"  # C64 warning yellow
+W="\033[38;5;249m"  # C64 secondary gray (default text)
+D="\033[38;5;241m"  # dim gray (separators/dim)
+RED="\033[38;5;131m" # C64 terra cotta (critical)
 R="\033[0m"         # reset
-SEP="${D}│${R}"
+SEP="${D}▓${R}"
 
 # Star mark (Sterngold ghost star)
 STAR="${G}★${R}"

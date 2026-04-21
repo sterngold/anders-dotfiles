@@ -99,7 +99,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/guard-sensitive-paths.sh"
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-sensitive-paths.sh"
           }
         ]
       },
@@ -108,7 +108,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/guard-agent-model.sh"
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-agent-model.sh"
           }
         ]
       },
@@ -137,7 +137,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash /Users/sterngold/Desktop/GoogleDrive/My_projects/.claude/hooks/validate-file.sh"
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/validate-file.sh"
           }
         ]
       }

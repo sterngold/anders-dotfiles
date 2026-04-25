@@ -134,11 +134,24 @@ if [ -n "$OUTPUT_STYLE" ] && [ "$OUTPUT_STYLE" != "default" ]; then
   M_SHORT="${M_SHORT} ${D}[${W}${OUTPUT_STYLE}${D}]${R}"
 fi
 
-# Mode indicator (CLAUDE_CONFIG_DIR-based)
+# Mode indicator (CLAUDE_CONFIG_DIR-based) — also captured for OSC 1337 emission below
 case "${CLAUDE_CONFIG_DIR:-}" in
-  *full*)  M_SHORT="${M_SHORT} ${G}[FULL]${R}" ;;
-  *build*) M_SHORT="${M_SHORT} ${B}[BUILD]${R}" ;;
+  *full*)    CC_MODE="FULL"    ; M_SHORT="${M_SHORT} ${G}[FULL]${R}" ;;
+  *build*)   CC_MODE="BUILD"   ; M_SHORT="${M_SHORT} ${B}[BUILD]${R}" ;;
+  *partner*) CC_MODE="PARTNER" ; M_SHORT="${M_SHORT} ${P}[PARTNER]${R}" ;;
+  *)         CC_MODE="" ;;
 esac
+
+# Project name from PWD relative to $PROJECTS_ROOT (first segment, or "workspace" at root)
+PROJ_NAME="workspace"
+if [ -n "${PROJECTS_ROOT:-}" ] && [ -n "${PWD:-}" ]; then
+  case "$PWD" in
+    "$PROJECTS_ROOT")     PROJ_NAME="workspace" ;;
+    "$PROJECTS_ROOT"/*)   PROJ_NAME="${PWD#$PROJECTS_ROOT/}"; PROJ_NAME="${PROJ_NAME%%/*}" ;;
+    *)                    PROJ_NAME="$(basename "$PWD")" ;;
+  esac
+fi
+M_SHORT="${M_SHORT} ${D}${PROJ_NAME}${R}"
 
 # ── Context: tokens + bar + wrap warning ───────
 if [ "$CTX_TOKENS" -ge 1000000 ] 2>/dev/null; then
@@ -286,5 +299,15 @@ fi
 
 # Duration
 [ -n "$TIME_SEG" ] && PARTS="${PARTS} ${SEP} ${TIME_SEG}"
+
+# Emit iTerm2 user variables (OSC 1337) every render so the AndersStar profile
+# badge — which interpolates \(user.cc_mode) and \(user.cc_project) — stays in sync
+# with cwd changes made *inside* Claude (cd into a different project subdir).
+if [ -n "${TERM_PROGRAM:-}" ] && [ "$TERM_PROGRAM" = "iTerm.app" ]; then
+  CC_MODE_B64=$(printf '%s' "${CC_MODE:-}"   | base64 | tr -d '\n')
+  PROJ_B64=$(   printf '%s' "${PROJ_NAME:-}" | base64 | tr -d '\n')
+  printf '\033]1337;SetUserVar=cc_mode=%s\007'    "$CC_MODE_B64"
+  printf '\033]1337;SetUserVar=cc_project=%s\007' "$PROJ_B64"
+fi
 
 echo -e "$PARTS"

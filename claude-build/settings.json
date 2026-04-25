@@ -172,10 +172,11 @@
     "swift-lsp@claude-plugins-official": false,
     "frontend-design@claude-plugins-official": false,
     "playwright@claude-plugins-official": true,
-    "figma@claude-plugins-official": false
+    "figma@claude-plugins-official": false,
+    "cloudflare@claude-plugins-official": true
   },
   "tui": "fullscreen",
   "autoDreamEnabled": false,
-  "voiceEnabled": false,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": false
 }

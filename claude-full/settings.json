@@ -80,7 +80,8 @@
       "Edit(//Users/sterngold/Documents/VladFinance/**)",
       "Write(//Users/sterngold/Documents/Health/**)",
       "Edit(//Users/sterngold/Documents/Health/**)"
-    ]
+    ],
+    "defaultMode": "auto"
   },
   "hooks": {
     "SessionStart": [
@@ -189,16 +190,17 @@
     "playwright@claude-plugins-official": true,
     "figma@claude-plugins-official": false,
     "code-simplifier@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": true,
+    "ralph-loop@claude-plugins-official": false,
     "commit-commands@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "linear@claude-plugins-official": true,
-    "cloudflare@claude-plugins-official": true
+    "cloudflare@claude-plugins-official": false
   },
   "effortLevel": "xhigh",
   "tui": "fullscreen",
   "autoDreamEnabled": true,
+  "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
 }

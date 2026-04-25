@@ -71,7 +71,8 @@
       "Edit(//Users/sterngold/Documents/VladFinance/**)",
       "Write(//Users/sterngold/Documents/Health/**)",
       "Edit(//Users/sterngold/Documents/Health/**)"
-    ]
+    ],
+    "defaultMode": "auto"
   },
   "hooks": {
     "SessionStart": [
@@ -175,5 +176,6 @@
   },
   "tui": "fullscreen",
   "autoDreamEnabled": false,
-  "voiceEnabled": false
+  "voiceEnabled": false,
+  "skipAutoPermissionPrompt": true
 }

@@ -60,10 +60,15 @@ _cc_reset_visuals() {
 }
 
 # Core launcher: shared between all three wrappers.
-# Args: mode, config-dir, R, G, B, then user args ("$@" from the wrapper).
+# Args: mode, config-dir, R, G, B, model_class, then user args ("$@" from the wrapper).
+# model_class drives AW-F7 sovereignty guard (anders-config/specs/2026-04-24-aw-f7…):
+#   local         — sovereign tools (anders_health_query / anders_fin_query /
+#                   anders_coach_ask) may run; the agent class is on-host inference.
+#   remote_egress — sovereign tools refuse via T6 / S2; the agent class talks to a
+#                   cloud model (Anthropic / OpenAI / etc.) and must not see vault data.
 _cc_launch() {
-  local mode="$1" config_dir="$2" r="$3" g="$4" b="$5"
-  shift 5
+  local mode="$1" config_dir="$2" r="$3" g="$4" b="$5" model_class="$6"
+  shift 6
   local root="${PROJECTS_ROOT:?PROJECTS_ROOT not set}"
   local target badge
   if [[ -n "$1" && -d "$root/$1" ]]; then
@@ -75,7 +80,7 @@ _cc_launch() {
     cd "$target" || return
     _cc_apply_visuals "$mode" "$badge" "$r" "$g" "$b"
     trap '_cc_reset_visuals' EXIT INT TERM
-    CLAUDE_CONFIG_DIR="$config_dir" claude "$@"
+    AW_F7_MODEL_CLASS="$model_class" CLAUDE_CONFIG_DIR="$config_dir" claude "$@"
   )
 }
 
@@ -86,13 +91,13 @@ _cc_launch() {
 #   PARTNER  = purple  (R=160 G= 70 B=210)  — partner mode
 
 cc() {
-  _cc_launch FULL    "$HOME/.claude-full"      0 200  80 "$@"
+  _cc_launch FULL    "$HOME/.claude-full"      0 200  80 remote_egress "$@"
 }
 
 cc-build() {
-  _cc_launch BUILD   "$HOME/.claude-build"    40 110 220 "$@"
+  _cc_launch BUILD   "$HOME/.claude-build"    40 110 220 local "$@"
 }
 
 cc-partner() {
-  _cc_launch PARTNER "$HOME/.claude-partner" 160  70 210 "$@"
+  _cc_launch PARTNER "$HOME/.claude-partner" 160  70 210 remote_egress "$@"
 }

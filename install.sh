@@ -46,7 +46,9 @@ link() {
 #   - if dst is a real file → leave alone (machine-managed, do not clobber)
 #   - if dst is missing → bootstrap copy from template
 # Template updates (new permissions, hooks, plugins) require a manual merge
-# into each machine's live file. See sync-settings.sh (TBD) or `diff` by hand.
+# into each machine's live file. Use sync-settings.sh in this repo:
+#   ./sync-settings.sh           # dry-run, prints what would change
+#   ./sync-settings.sh --apply   # writes (with .pre-sync.<ts> backups)
 manage_settings() {
   local src="$1"
   local dst="$2"

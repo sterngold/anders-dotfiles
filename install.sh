@@ -46,6 +46,12 @@ link "$REPO/claude-full/settings.json"    "$HOME_DIR/.claude-full/settings.json"
 link "$REPO/claude-build/settings.json"   "$HOME_DIR/.claude-build/settings.json"
 link "$REPO/claude-partner/settings.json" "$HOME_DIR/.claude-partner/settings.json"
 
+# Skills — every profile reads from the same skills tree at ~/.claude/skills
+# (which itself symlinks into anders-config/skills/ via the workspace).
+link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-full/skills"
+link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-build/skills"
+link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-partner/skills"
+
 # Zsh aliases — source line added to ~/.zprofile if not present
 ZSH_SOURCE_LINE="[[ -f $REPO/zsh/cc-aliases.zsh ]] && source $REPO/zsh/cc-aliases.zsh"
 if ! grep -Fq "$REPO/zsh/cc-aliases.zsh" "$HOME_DIR/.zprofile" 2>/dev/null; then

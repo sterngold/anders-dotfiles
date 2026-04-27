@@ -46,11 +46,16 @@ link "$REPO/claude-full/settings.json"    "$HOME_DIR/.claude-full/settings.json"
 link "$REPO/claude-build/settings.json"   "$HOME_DIR/.claude-build/settings.json"
 link "$REPO/claude-partner/settings.json" "$HOME_DIR/.claude-partner/settings.json"
 
-# Skills — every profile reads from the same skills tree at ~/.claude/skills
-# (which itself symlinks into anders-config/skills/ via the workspace).
+# Skills — cc-full sees the entire skill tree; cc-build and cc-partner are
+# CURATED SUBSETS (per-mode allowlists), not blanket-linked. The curation
+# is per-machine (Vlad-managed). Reference subset (BabyStar Apr 17):
+#   cc-build:    build challenge cowork deep-load deploy excalidraw-diagram
+#                frontend-design github-craft plan review-code session-wrap
+#                skill-harden spec team
+#   cc-partner:  brief challenge cowork deep-load resume team
+# Do NOT replace the curated dirs with a blanket symlink — that defeats the
+# whole point of cc-build / cc-partner being lean.
 link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-full/skills"
-link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-build/skills"
-link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-partner/skills"
 
 # Zsh aliases — source line added to ~/.zprofile if not present
 ZSH_SOURCE_LINE="[[ -f $REPO/zsh/cc-aliases.zsh ]] && source $REPO/zsh/cc-aliases.zsh"

@@ -35,16 +35,51 @@ link() {
   echo "  LINK $dst -> $src"
 }
 
-# ~/.claude/ files
-link "$REPO/claude/settings.json"    "$HOME_DIR/.claude/settings.json"
+# Helper for settings.json: bootstrap-then-leave-alone, with one-time migration
+# off the legacy symlink layout. Claude Code writes UI prefs (theme, model,
+# voiceEnabled, autoDreamEnabled, plugin toggles) directly to the user-scope
+# settings.json on every change — symlinking it into the dotfiles repo would
+# mean every preference tweak dirties git. So:
+#   - if dst is a symlink to our template → migrate: replace with a real-file
+#     copy of the template, so future CC writes stay machine-local
+#   - if dst is a symlink elsewhere → leave alone (someone else owns it)
+#   - if dst is a real file → leave alone (machine-managed, do not clobber)
+#   - if dst is missing → bootstrap copy from template
+# Template updates (new permissions, hooks, plugins) require a manual merge
+# into each machine's live file. See sync-settings.sh (TBD) or `diff` by hand.
+manage_settings() {
+  local src="$1"
+  local dst="$2"
+  if [[ -L "$dst" ]]; then
+    local current
+    current="$(readlink "$dst")"
+    if [[ "$current" == "$src" ]]; then
+      rm "$dst"
+      cp "$src" "$dst"
+      echo "  MIGR $dst (symlink -> real file; was pointing at template)"
+      return
+    fi
+    echo "  SKIP $dst (symlink to $current, not our template)"
+    return
+  fi
+  if [[ -e "$dst" ]]; then
+    echo "  KEEP $dst (real file, machine-managed)"
+    return
+  fi
+  cp "$src" "$dst"
+  echo "  BOOT $dst (bootstrap copy from template)"
+}
+
+# ~/.claude/ static files (CC never writes these → safe to symlink)
 link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude/CLAUDE.md"
 link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude/statusline.sh"
 link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude/keybindings.json"
 
-# Alt config dirs (cc, cc-build, cc-partner)
-link "$REPO/claude-full/settings.json"    "$HOME_DIR/.claude-full/settings.json"
-link "$REPO/claude-build/settings.json"   "$HOME_DIR/.claude-build/settings.json"
-link "$REPO/claude-partner/settings.json" "$HOME_DIR/.claude-partner/settings.json"
+# settings.json — bootstrap-then-machine-managed (see manage_settings comment)
+manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"
+manage_settings "$REPO/claude-full/settings.json"     "$HOME_DIR/.claude-full/settings.json"
+manage_settings "$REPO/claude-build/settings.json"    "$HOME_DIR/.claude-build/settings.json"
+manage_settings "$REPO/claude-partner/settings.json"  "$HOME_DIR/.claude-partner/settings.json"
 
 # Skills — cc-full sees the entire skill tree; cc-build and cc-partner are
 # CURATED SUBSETS (per-mode allowlists), not blanket-linked. The curation

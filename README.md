@@ -22,7 +22,7 @@ Claude Code configuration across machines. Four modes, three machines, one sourc
 - `~/.claude*/file-history/` — edit history (ephemeral)
 - `~/.claude*/backups/` — internal state (ephemeral)
 - `~/.claude*/settings.local.json` — machine-specific overrides (if you ever need per-machine differences)
-- `~/.claude/skills/` — symlinks to `anders-config/skills/` (versioned there)
+- `~/.claude/skills/` — symlinks to `00_SYSTEM/anders-config/skills/` (versioned there)
 
 ## Install (new machine)
 

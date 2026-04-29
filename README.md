@@ -43,7 +43,11 @@ cd anders-dotfiles && ./install.sh
 
 ## Path assumptions
 
-Currently hardcoded for `user=sterngold` and `PROJECTS_ROOT=~/Desktop/GoogleDrive/My_projects`. If a machine differs, fork the settings.json locally or introduce env-var templating (see TODO).
+Path assumptions are machine-specific via `PROJECTS_ROOT` (set in `~/.zprofile` per machine):
+- AndersStar (primary): `PROJECTS_ROOT=~/Code/my-projects`
+- BabyStar (travel): `PROJECTS_ROOT=~/Desktop/GoogleDrive/My_projects`
+
+`settings.json` hooks and `statusline.sh` use `${PROJECTS_ROOT}` — add it to `~/.zprofile` on any new machine before installing.
 
 ## Updating
 

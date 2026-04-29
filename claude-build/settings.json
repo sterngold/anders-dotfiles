@@ -173,7 +173,8 @@
     "frontend-design@claude-plugins-official": false,
     "playwright@claude-plugins-official": true,
     "figma@claude-plugins-official": false,
-    "cloudflare@claude-plugins-official": true
+    "cloudflare@claude-plugins-official": true,
+    "linear@claude-plugins-official": true
   },
   "tui": "fullscreen",
   "autoDreamEnabled": false,

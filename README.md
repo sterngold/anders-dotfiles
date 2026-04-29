@@ -53,4 +53,4 @@ Path assumptions are machine-specific via `PROJECTS_ROOT` (set in `~/.zprofile` 
 
 Edit files in this repo, commit, push. On other machines: `git pull && ./install.sh` (no-op if symlinks already correct).
 
-Per `anders-config/rules/git-discipline.md`: one concern per commit, message = why not what.
+Per `00_SYSTEM/anders-config/rules/git-discipline.md`: one concern per commit, message = why not what.

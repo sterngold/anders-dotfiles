@@ -105,5 +105,21 @@ else
   echo "  OK   ~/.zprofile already sources cc-aliases.zsh"
 fi
 
+# Fabrication-check hook (AND-786 Layer 1 — Structural Skeptic)
+# Symlinks fabrication-check.py from anders-config into ~/.local/hooks/.
+# Shell wrapper pre-commit-fabrication-check.sh calls it at the installed path.
+mkdir -p "$HOME_DIR/.local/hooks"
+PROJECTS_ROOT="$HOME_DIR/Code/my-projects"
+FCHECK_SRC="$PROJECTS_ROOT/00_SYSTEM/anders-config/tools/fabrication-check.py"
+FCHECK_DST="$HOME_DIR/.local/hooks/fabrication-check.py"
+if [[ -f "$FCHECK_SRC" ]]; then
+    link "$FCHECK_SRC" "$FCHECK_DST"
+    chmod +x "$FCHECK_SRC"
+    echo "  OK   ~/.local/hooks/fabrication-check.py -> anders-config"
+else
+    echo "  SKIP fabrication-check.py not found at $FCHECK_SRC (submodule missing?)"
+    echo "       Install manually: ln -sf $FCHECK_SRC $FCHECK_DST"
+fi
+
 echo ""
 echo "Done. Open a new shell or: source ~/.zprofile"

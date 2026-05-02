@@ -74,8 +74,13 @@ manage_settings() {
 
 # ~/.claude/ static files (CC never writes these → safe to symlink)
 link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude/CLAUDE.md"
+link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude/RTK.md"
 link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude/statusline.sh"
 link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude/keybindings.json"
+
+# ~/.claude-full/ static files — cc-full gets the same global context loader
+link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude-full/CLAUDE.md"
+link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude-full/RTK.md"
 
 # settings.json — bootstrap-then-machine-managed (see manage_settings comment)
 manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"

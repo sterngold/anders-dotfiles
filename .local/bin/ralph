@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ralph runner v1.0 — 2026-05-04
+# ralph runner v1.1 — 2026-05-04
 # Ralph Loop runner for cc-build mode. Spec: KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md
 #
 # Containment model: hostname gate + allowlist + hardblock + worktree + --disallowedTools.
@@ -12,7 +12,7 @@ set -euo pipefail
 # Constants — single source of truth
 # ============================================================================
 
-readonly RALPH_VERSION="1.0"
+readonly RALPH_VERSION="1.1"
 readonly REQUIRED_HOSTNAME="andersstar"
 readonly ALLOWLIST_FILE="${HOME}/.claude-build/ralph-allowlist.txt"
 readonly RUNS_ROOT="${HOME}/RalphRuns"
@@ -37,6 +37,11 @@ readonly HARDBLOCK_PATTERNS=(
 
 # --disallowedTools — single source of truth, assembled once.
 # Syntax verified against `claude --help` 2026-05-04: Bash(rm *) form, Edit not FileEdit.
+# v1.1 (2026-05-04): added monorepo-internal sensitive paths AND broader .env*
+# globs to close the worktree-internal-edit hole. Hardblock checks the
+# INVOCATION path; --disallowedTools must independently catch edits within a
+# broad-scope worktree (e.g. when invoked on a my-projects-subdir like
+# 10_AI_OS/Frostgable that worktrees the whole monorepo).
 readonly DISALLOWED_TOOLS=(
     "Bash(rm *)"
     "Bash(sudo *)"
@@ -45,11 +50,20 @@ readonly DISALLOWED_TOOLS=(
     "Bash(curl *)"
     "Bash(wget *)"
     "Edit(.env)"
+    "Edit(.env.*)"
+    "Edit(**/.env)"
+    "Edit(**/.env.*)"
     "Edit(*.zprofile)"
     "Edit(~/Vaults/**)"
     "Edit(~/Documents/Health/**)"
     "Edit(~/Documents/VladFinance/**)"
     "Edit(~/.ollama/**)"
+    "Edit(**/30_DOMAINS/VladCoaching/**)"
+    "Edit(**/Health/**)"
+    "Edit(**/VladFinance/**)"
+    "Edit(**/secrets/**)"
+    "Edit(**/auth/**)"
+    "Edit(**/billing/**)"
     "mcp__*"
 )
 

@@ -1,4 +1,4 @@
-# claude-build CLAUDE.md v1.1 — 2026-05-04
+# claude-build CLAUDE.md v1.2 — 2026-05-04
 
 You are running in **cc-build** mode: lean, autonomous coding. Different from cc-full (writing/coaching/partner) and cc-partner (minimal).
 
@@ -22,4 +22,4 @@ You are running in **cc-build** mode: lean, autonomous coding. Different from cc
 
 ## Environment rules (promoted from Ralph runs)
 
-13. **pytest on macOS:** the system `python3` (Homebrew-managed Python 3.14) is externally-managed (PEP 668) and rejects `pip install pytest` even with `--system` or `--break-system-packages`. To run `python3 -m pytest`, install pytest via `brew install pytest`, OR create a project venv with `uv venv .venv && uv pip install --python .venv/bin/python pytest && .venv/bin/pytest <args>`. Skip the pip install dance — go straight to one of these two paths. (Promoted 2026-05-04 from ralph-firstrun iter-1.)
+13. **pytest on macOS** (tightened in v1.2 after iter-2 caught the v1.1 hole): the system `python3` (Homebrew Python 3.14) is externally-managed (PEP 668) and rejects all `pip install` forms. To make `python3 -m pytest` work as written, create a venv and activate it: `uv venv .venv && uv pip install --python .venv/bin/python pytest && source .venv/bin/activate && python3 -m pytest <args>`. **Do NOT `brew install pytest`** — it installs a standalone binary that does NOT satisfy `python3 -m pytest` (separate Python interpreter; pytest module is not importable from system python3). If a task's declared test is literally `python3 -m pytest`, the venv-and-activate path is the only correct fix; do not silently substitute `pytest` for `python3 -m pytest` and claim the test passed. (Promoted 2026-05-04 from ralph-firstrun iter-1; corrected from v1.1 after iter-2 surfaced the brew gap.)

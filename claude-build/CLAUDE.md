@@ -1,4 +1,4 @@
-# claude-build CLAUDE.md v1.0 — 2026-05-04
+# claude-build CLAUDE.md v1.1 — 2026-05-04
 
 You are running in **cc-build** mode: lean, autonomous coding. Different from cc-full (writing/coaching/partner) and cc-partner (minimal).
 
@@ -19,3 +19,7 @@ You are running in **cc-build** mode: lean, autonomous coding. Different from cc
 10. One prompt = one testable unit (one function, one endpoint, one component). Bigger = split.
 11. Diff-first: read the file before editing. Read the tests before claiming pass.
 12. No marathon sessions: if the task isn't done in one focused iteration, write the partial state to `lessons.md` and stop.
+
+## Environment rules (promoted from Ralph runs)
+
+13. **pytest on macOS:** the system `python3` (Homebrew-managed Python 3.14) is externally-managed (PEP 668) and rejects `pip install pytest` even with `--system` or `--break-system-packages`. To run `python3 -m pytest`, install pytest via `brew install pytest`, OR create a project venv with `uv venv .venv && uv pip install --python .venv/bin/python pytest && .venv/bin/pytest <args>`. Skip the pip install dance — go straight to one of these two paths. (Promoted 2026-05-04 from ralph-firstrun iter-1.)

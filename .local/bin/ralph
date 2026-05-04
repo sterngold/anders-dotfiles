@@ -1,0 +1,513 @@
+#!/usr/bin/env bash
+# ralph runner v1.0 — 2026-05-04
+# Ralph Loop runner for cc-build mode. Spec: KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md
+#
+# Containment model: hostname gate + allowlist + hardblock + worktree + --disallowedTools.
+# Self-corrective: every-5th-iteration holdout + 10-entry prune trigger.
+# Cost telemetry: total_cost_usd from claude --output-format=json captured per iteration.
+
+set -euo pipefail
+
+# ============================================================================
+# Constants — single source of truth
+# ============================================================================
+
+readonly RALPH_VERSION="1.0"
+readonly REQUIRED_HOSTNAME="andersstar"
+readonly ALLOWLIST_FILE="${HOME}/.claude-build/ralph-allowlist.txt"
+readonly RUNS_ROOT="${HOME}/RalphRuns"
+readonly PROJECTS_ROOT="${HOME}/Code/my-projects"
+readonly PRUNE_THRESHOLD=10
+readonly DEFAULT_ITERATIONS=1
+readonly MAX_BUDGET_USD_PER_ITER="${RALPH_MAX_BUDGET_USD:-5.00}"
+
+# Hardblock — paths Ralph can NEVER touch, even if allowlisted.
+# Match against canonicalized path with substring search.
+readonly HARDBLOCK_PATTERNS=(
+    "/Vaults/"
+    "/Documents/Health/"
+    "/Documents/VladFinance/"
+    "/30_DOMAINS/VladCoaching/"
+    "/auth/"
+    "/billing/"
+    "/.env"
+    "/.zprofile"
+    "/.ollama/"
+)
+
+# --disallowedTools — single source of truth, assembled once.
+# Syntax verified against `claude --help` 2026-05-04: Bash(rm *) form, Edit not FileEdit.
+readonly DISALLOWED_TOOLS=(
+    "Bash(rm *)"
+    "Bash(sudo *)"
+    "Bash(git push *)"
+    "Bash(gh *)"
+    "Bash(curl *)"
+    "Bash(wget *)"
+    "Edit(.env)"
+    "Edit(*.zprofile)"
+    "Edit(~/Vaults/**)"
+    "Edit(~/Documents/Health/**)"
+    "Edit(~/Documents/VladFinance/**)"
+    "Edit(~/.ollama/**)"
+    "mcp__*"
+)
+
+# ============================================================================
+# Output helpers
+# ============================================================================
+
+err()  { printf '\033[31m%s\033[0m\n' "$*" >&2; }
+warn() { printf '\033[33m%s\033[0m\n' "$*" >&2; }
+ok()   { printf '\033[32m%s\033[0m\n' "$*"; }
+info() { printf '%s\n' "$*"; }
+
+# ============================================================================
+# Gates
+# ============================================================================
+
+check_hostname() {
+    local actual
+    actual="$(hostname -s)"
+    if [[ "${actual}" != "${REQUIRED_HOSTNAME}" ]]; then
+        err "BLOCKED: Ralph v1 runs on ${REQUIRED_HOSTNAME} only (this host: ${actual})."
+        err "Multi-machine support is v1.x — see KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md."
+        exit 1
+    fi
+}
+
+# Canonicalize a path: resolve symlinks, expand ~, make absolute.
+# Returns the resolved path on stdout, exit 1 if path doesn't exist.
+canonicalize() {
+    local raw="$1"
+    # Expand leading ~
+    if [[ "${raw}" == "~/"* ]]; then
+        raw="${HOME}/${raw#\~/}"
+    elif [[ "${raw}" == "~" ]]; then
+        raw="${HOME}"
+    fi
+    # If relative, resolve against PROJECTS_ROOT (Vlad's primary workspace)
+    if [[ "${raw}" != /* ]]; then
+        raw="${PROJECTS_ROOT}/${raw}"
+    fi
+    if [[ ! -e "${raw}" ]]; then
+        err "BLOCKED: path does not exist: ${raw}"
+        exit 1
+    fi
+    realpath "${raw}"
+}
+
+check_hardblock() {
+    local canonical="$1"
+    # Append trailing slash so directory-style patterns match a canonical
+    # that realpath has stripped (e.g. canonical ".../VladCoaching" must
+    # still match pattern "/VladCoaching/").
+    local canon_slash="${canonical}/"
+    local pattern
+    for pattern in "${HARDBLOCK_PATTERNS[@]}"; do
+        if [[ "${canon_slash}" == *"${pattern}"* ]]; then
+            err "HARDBLOCK: path matches sensitive deny list (cannot be allowlisted): ${pattern}"
+            err "  resolved path: ${canonical}"
+            exit 1
+        fi
+    done
+}
+
+check_allowlist() {
+    local canonical="$1"
+    if [[ ! -f "${ALLOWLIST_FILE}" ]]; then
+        err "BLOCKED: allowlist not found at ${ALLOWLIST_FILE}"
+        err "Run ./install.sh from anders-dotfiles to bootstrap, or create the file manually."
+        exit 1
+    fi
+    local line entry resolved
+    while IFS= read -r line; do
+        # Strip comments and whitespace
+        entry="${line%%#*}"
+        entry="${entry#"${entry%%[![:space:]]*}"}"
+        entry="${entry%"${entry##*[![:space:]]}"}"
+        [[ -z "${entry}" ]] && continue
+        # Resolve allowlist entry against PROJECTS_ROOT if relative
+        if [[ "${entry}" != /* ]] && [[ "${entry}" != ~/* ]]; then
+            entry="${PROJECTS_ROOT}/${entry}"
+        elif [[ "${entry}" == ~/* ]]; then
+            entry="${HOME}/${entry#\~/}"
+        fi
+        # Canonicalize allowlist entry (best-effort; skip if path missing)
+        if [[ -e "${entry}" ]]; then
+            resolved="$(realpath "${entry}")"
+        else
+            resolved="${entry}"
+        fi
+        # Exact-prefix (startswith) match
+        if [[ "${canonical}" == "${resolved}"* ]]; then
+            return 0
+        fi
+    done < "${ALLOWLIST_FILE}"
+    err "BLOCKED: project not in ralph-allowlist.txt — add the path explicitly to permit."
+    err "  resolved path: ${canonical}"
+    err "  allowlist:     ${ALLOWLIST_FILE}"
+    exit 1
+}
+
+check_prune_trigger() {
+    local notes_file="$1"
+    [[ ! -f "${notes_file}" ]] && return 0
+    local count
+    count=$(grep -c '^## ' "${notes_file}" || true)
+    if [[ "${count}" -ge "${PRUNE_THRESHOLD}" ]]; then
+        err "PRUNE_DUE: notes.md has ${count} entries (threshold ${PRUNE_THRESHOLD})."
+        err "  Run: ralph notes <project> --prune"
+        err "  Why: prevents pattern-confirming bias compounding (per /team Mira)."
+        exit 1
+    fi
+}
+
+# ============================================================================
+# Runtime helpers
+# ============================================================================
+
+ts_utc() { date -u +'%Y-%m-%dT%H%MZ'; }
+
+# Read up to N most recent per-iteration lessons.md across all prior runs of this project.
+read_recent_lessons() {
+    local project_slug="$1"
+    local n="${2:-3}"
+    [[ ! -d "${RUNS_ROOT}" ]] && return 0
+    # Find lessons.md files for this project, sorted by mtime descending
+    find "${RUNS_ROOT}" -type f -name 'lessons.md' -path "*${project_slug}*" \
+        2>/dev/null | xargs -I{} stat -f '%m %N' {} 2>/dev/null \
+        | sort -rn | head -n "${n}" | awk '{print $2}'
+}
+
+build_iteration_prompt() {
+    local task_file="$1"
+    local notes_file="$2"
+    local include_notes="$3"   # "true" or "false" — false during holdout iters
+    local iter_num="$4"
+    local total_iters="$5"
+    local project_slug="$6"
+
+    cat <<EOF
+You are Ralph, running iteration ${iter_num} of ${total_iters} in cc-build mode on a git worktree.
+
+# Task file
+$(cat "${task_file}" 2>/dev/null || echo "(tasks.md not found at ${task_file})")
+
+EOF
+
+    if [[ "${include_notes}" == "true" ]]; then
+        if [[ -f "${notes_file}" ]]; then
+            echo "# Project rolling notes (notes.md)"
+            cat "${notes_file}"
+            echo ""
+        fi
+        local lessons_files
+        lessons_files=$(read_recent_lessons "${project_slug}" 3)
+        if [[ -n "${lessons_files}" ]]; then
+            echo "# Recent per-iteration lessons (3 most recent)"
+            local f
+            while IFS= read -r f; do
+                echo "## from ${f}"
+                cat "${f}"
+                echo ""
+            done <<< "${lessons_files}"
+        fi
+    else
+        echo "# HOLDOUT ITERATION — prior notes context omitted by design (counterfactual gate)."
+    fi
+
+    cat <<'EOF'
+
+# Rules
+- Pick the highest-priority incomplete task from tasks.md.
+- Implement it, write/run its declared test, commit atomically.
+- A task is "passing" only if its test command exits 0.
+- At end of iteration, write /tmp/ralph-iter-lessons.md with sections:
+  ## What worked
+  ## What failed
+  ## Off-limits attempts
+  ## Suggested rule for cc-build CLAUDE.md
+- Do NOT git push. Do NOT call mcp__* tools. Do NOT touch paths outside this worktree.
+EOF
+}
+
+# ============================================================================
+# Subcommands
+# ============================================================================
+
+cmd_notes() {
+    local project_arg="${1:-}"
+    if [[ -z "${project_arg}" ]]; then
+        err "Usage: ralph notes <project-path> [--prune]"
+        exit 2
+    fi
+    local prune_flag="${2:-}"
+    local canonical
+    canonical=$(canonicalize "${project_arg}")
+    check_hardblock "${canonical}"
+    local notes_file="${canonical}/.ralph/notes.md"
+    if [[ "${prune_flag}" == "--prune" ]]; then
+        if [[ ! -f "${notes_file}" ]]; then
+            warn "No notes.md to prune at ${notes_file}"
+            exit 0
+        fi
+        local editor="${EDITOR:-vi}"
+        info "Opening ${notes_file} in ${editor} for human review."
+        info "Delete entries that are not durable. Save to commit pruned state."
+        "${editor}" "${notes_file}"
+        ok "Prune complete. Re-count: $(grep -c '^## ' "${notes_file}" || echo 0) entries."
+        return 0
+    fi
+    if [[ ! -f "${notes_file}" ]]; then
+        info "No notes yet — your first run will start the loop."
+        info "  Expected location: ${notes_file}"
+        return 0
+    fi
+    cat "${notes_file}"
+}
+
+cmd_run() {
+    local project_arg=""
+    local iterations="${DEFAULT_ITERATIONS}"
+    local task_file="tasks.md"
+    local dry_run="false"
+
+    # Parse args
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --iterations|-n) iterations="$2"; shift 2 ;;
+            --task) task_file="$2"; shift 2 ;;
+            --dry-run) dry_run="true"; shift ;;
+            -h|--help) print_usage; exit 0 ;;
+            -*) err "Unknown flag: $1"; exit 2 ;;
+            *) project_arg="$1"; shift ;;
+        esac
+    done
+
+    [[ -z "${project_arg}" ]] && { print_usage; exit 2; }
+
+    # Gates
+    local canonical
+    canonical=$(canonicalize "${project_arg}")
+    check_hardblock "${canonical}"
+    check_allowlist "${canonical}"
+    check_prune_trigger "${canonical}/.ralph/notes.md"
+
+    # Resolve task file relative to project
+    if [[ "${task_file}" != /* ]]; then
+        task_file="${canonical}/${task_file}"
+    fi
+
+    local project_slug
+    project_slug="$(basename "${canonical}")"
+    local run_id="${project_slug}-$(ts_utc)"
+    local run_dir="${RUNS_ROOT}/${run_id}"
+    local worktree_dir="${run_dir}/worktree"
+    local run_log="${run_dir}/run.log"
+    local notes_file="${canonical}/.ralph/notes.md"
+
+    # Source-tree warn (not refuse — worktree captures HEAD anyway)
+    local uncommitted
+    uncommitted=$(cd "${canonical}" && git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "${uncommitted}" -gt 0 ]]; then
+        warn "WARN: ${uncommitted} uncommitted file(s) in source — Ralph operates on HEAD only."
+    fi
+
+    # Assemble disallowed-tools as a single comma-separated string.
+    # Comma-separated avoids whitespace-splitting of patterns like "Bash(rm *)".
+    # Verified syntax against `claude --help` 2026-05-04: accepts "comma or
+    # space-separated" via --disallowed-tools "<list>".
+    local disallowed_str=""
+    local t
+    for t in "${DISALLOWED_TOOLS[@]}"; do
+        if [[ -z "${disallowed_str}" ]]; then
+            disallowed_str="${t}"
+        else
+            disallowed_str+=",${t}"
+        fi
+    done
+
+    # Dry-run: print what we would do, exit
+    if [[ "${dry_run}" == "true" ]]; then
+        ok "=== ralph --dry-run ==="
+        info "Project (canonical):    ${canonical}"
+        info "Iterations:             ${iterations}"
+        info "Task file:              ${task_file}"
+        info "Run dir (would create): ${run_dir}"
+        info "Worktree (would add):   ${worktree_dir}"
+        info "Notes file:             ${notes_file}"
+        info "Holdout iters:          $(compute_holdouts "${iterations}")"
+        info "Max budget per iter:    \$${MAX_BUDGET_USD_PER_ITER}"
+        info ""
+        info "--disallowedTools (${#DISALLOWED_TOOLS[@]} entries):"
+        for t in "${DISALLOWED_TOOLS[@]}"; do info "  ${t}"; done
+        info ""
+        ok "Dry-run complete. No filesystem changes made."
+        return 0
+    fi
+
+    # Real run — create directories
+    mkdir -p "${run_dir}"
+    mkdir -p "$(dirname "${notes_file}")"
+    : > "${run_log}"
+
+    info "Creating worktree: ${worktree_dir}"
+    (cd "${canonical}" && git worktree add --detach "${worktree_dir}") \
+        || { err "git worktree add failed."; exit 1; }
+
+    echo "RUN_START: $(date -u +%FT%TZ)" >> "${run_log}"
+    echo "PROJECT: ${canonical}" >> "${run_log}"
+    echo "WORKTREE: ${worktree_dir}" >> "${run_log}"
+    echo "ITERATIONS: ${iterations}" >> "${run_log}"
+    echo "TASK_FILE: ${task_file}" >> "${run_log}"
+    echo "DISALLOWED_TOOLS: ${disallowed_str}" >> "${run_log}"
+
+    local total_cost="0"
+    local total_tokens_in="0"
+    local total_tokens_out="0"
+    local commits_count="0"
+    local i is_holdout iter_dir prompt_file output_file include_notes cost tokens_in tokens_out
+
+    for (( i=1; i<=iterations; i++ )); do
+        iter_dir="${run_dir}/iter-${i}"
+        mkdir -p "${iter_dir}"
+        prompt_file="${iter_dir}/prompt.txt"
+        output_file="${iter_dir}/output.json"
+
+        # Holdout decision
+        is_holdout="false"
+        if [[ "${iterations}" -ge 5 ]] && (( i % 5 == 0 )); then
+            is_holdout="true"
+            echo "HOLDOUT_ITER: ${i}" >> "${run_log}"
+            include_notes="false"
+        else
+            include_notes="true"
+        fi
+
+        info ""
+        info "=== Iteration ${i}/${iterations} (holdout=${is_holdout}) ==="
+
+        build_iteration_prompt "${task_file}" "${notes_file}" "${include_notes}" \
+            "${i}" "${iterations}" "${project_slug}" > "${prompt_file}"
+
+        # Launch Claude Code in print mode with JSON output, cost cap, disallowed tools
+        if (cd "${worktree_dir}" && claude \
+                --print \
+                --output-format=json \
+                --dangerously-skip-permissions \
+                --max-budget-usd "${MAX_BUDGET_USD_PER_ITER}" \
+                --disallowed-tools "${disallowed_str}" \
+                < "${prompt_file}" > "${output_file}" 2>>"${run_log}"); then
+            : # success
+        else
+            err "Iteration ${i} exited non-zero. Halting loop."
+            echo "ITER_FAIL: ${i}" >> "${run_log}"
+            break
+        fi
+
+        # Extract telemetry from JSON. jq when available (robust to format
+        # changes, key reordering); grep+cut fallback for portability.
+        # Per Gemini Gate 2026-05-04: hardened against silent JSON-format drift.
+        if command -v jq >/dev/null 2>&1; then
+            cost=$(jq -r '.total_cost_usd // 0' "${output_file}" 2>/dev/null || echo "0")
+            tokens_in=$(jq -r '.usage.input_tokens // 0' "${output_file}" 2>/dev/null || echo "0")
+            tokens_out=$(jq -r '.usage.output_tokens // 0' "${output_file}" 2>/dev/null || echo "0")
+        else
+            cost=$(grep -o '"total_cost_usd":[^,}]*' "${output_file}" | head -1 | cut -d: -f2 || echo "0")
+            tokens_in=$(grep -o '"input_tokens":[^,}]*' "${output_file}" | head -1 | cut -d: -f2 || echo "0")
+            tokens_out=$(grep -o '"output_tokens":[^,}]*' "${output_file}" | head -1 | cut -d: -f2 || echo "0")
+        fi
+        # Capture is_error flag separately so a failed iteration is visible in run.log
+        local is_error="false"
+        if command -v jq >/dev/null 2>&1; then
+            is_error=$(jq -r '.is_error // false' "${output_file}" 2>/dev/null || echo "false")
+        fi
+        echo "ITER ${i}: cost=\$${cost} tokens_in=${tokens_in} tokens_out=${tokens_out} holdout=${is_holdout} is_error=${is_error}" >> "${run_log}"
+
+        # Capture iteration's lessons.md if Claude wrote it to /tmp
+        if [[ -f "${worktree_dir}/tmp/ralph-iter-lessons.md" ]]; then
+            cp "${worktree_dir}/tmp/ralph-iter-lessons.md" "${iter_dir}/lessons.md"
+        elif [[ -f "/tmp/ralph-iter-lessons.md" ]]; then
+            cp "/tmp/ralph-iter-lessons.md" "${iter_dir}/lessons.md"
+            rm -f /tmp/ralph-iter-lessons.md
+        fi
+
+        # Append to project notes.md if iteration produced lessons
+        if [[ -f "${iter_dir}/lessons.md" ]]; then
+            {
+                echo ""
+                echo "## $(date -u +%FT%TZ) · iter-${i} · run-${run_id} · holdout=${is_holdout}"
+                cat "${iter_dir}/lessons.md"
+            } >> "${notes_file}"
+        fi
+
+        # Count commits made on the worktree
+        commits_count=$(cd "${worktree_dir}" && git rev-list --count HEAD ^"$(cd "${canonical}" && git rev-parse HEAD)" 2>/dev/null || echo "0")
+    done
+
+    echo "RUN_END: $(date -u +%FT%TZ)" >> "${run_log}"
+
+    # End-of-run summary (Sasha + Fatima)
+    info ""
+    ok "=== Run summary ==="
+    info "Iterations completed: see run.log"
+    info "Commits on worktree:  ${commits_count}"
+    info "Per-iter cost lines:"
+    grep '^ITER ' "${run_log}" || info "  (none)"
+    info ""
+    info "Worktree:  ${worktree_dir}"
+    info "Run log:   ${run_log}"
+    info "Notes:     ${notes_file}"
+    info ""
+    info "Next: cd ${worktree_dir} && git log     # review per-commit"
+    info "      ralph notes ${project_arg}        # see accumulated notes"
+}
+
+compute_holdouts() {
+    local n="$1"
+    [[ "${n}" -lt 5 ]] && { echo "0 (only fires when --iterations >= 5)"; return; }
+    local count=0
+    local i
+    for (( i=1; i<=n; i++ )); do
+        (( i % 5 == 0 )) && count=$((count + 1))
+    done
+    echo "${count}"
+}
+
+print_usage() {
+    cat <<EOF
+ralph v${RALPH_VERSION} — Ralph Loop runner for cc-build mode
+
+Usage:
+  ralph <project-path> [--iterations N] [--task FILE] [--dry-run]
+  ralph notes <project-path> [--prune]
+  ralph -h | --help
+
+Project path: relative to ${PROJECTS_ROOT}, or absolute, or ~/...
+
+Options:
+  --iterations N    Number of loop iterations (default: ${DEFAULT_ITERATIONS}).
+                    For overnight runs, pass 10 or 20 explicitly.
+  --task FILE       Task file inside project (default: tasks.md).
+  --dry-run         Show what would happen, make no filesystem changes.
+
+Subcommands:
+  notes <project>            Print accumulated notes.md for project.
+  notes <project> --prune    Open notes.md in \$EDITOR for human review.
+
+Spec: KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md
+EOF
+}
+
+# ============================================================================
+# Main
+# ============================================================================
+
+check_hostname
+
+case "${1:-}" in
+    -h|--help|"") print_usage; exit 0 ;;
+    notes)        shift; cmd_notes "$@" ;;
+    *)            cmd_run "$@" ;;
+esac

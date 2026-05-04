@@ -1,0 +1,6 @@
+# Ralph runner allowlist — one canonicalized project path per line
+# Lines starting with # are comments. Empty lines ignored.
+# Match is exact-prefix (startswith) AFTER realpath canonicalization.
+# Hardblock paths (Vaults, Health, Finance, Coaching, .env, *.zprofile)
+# CANNOT be allowlisted around — they're hardcoded in the runner.
+40_EXPERIMENTS/

@@ -82,6 +82,26 @@ link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude/keybindings.json"
 link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude-full/CLAUDE.md"
 link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude-full/RTK.md"
 
+# ~/.claude-build/ — cc-build gets its own CLAUDE.md (Ralph Loop + vibe coding rules,
+# scoped to autonomous-coding mode; cc-full and cc-partner do not load these).
+# Spec: KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md
+link "$REPO/claude-build/CLAUDE.md"  "$HOME_DIR/.claude-build/CLAUDE.md"
+
+# Ralph allowlist — bootstrap-then-machine-managed. User edits to add projects.
+# Hardblock paths (Vaults/Health/Finance/Coaching) are in the runner, NOT here.
+RALPH_ALLOWLIST_DST="$HOME_DIR/.claude-build/ralph-allowlist.txt"
+if [[ ! -e "$RALPH_ALLOWLIST_DST" ]]; then
+  cp "$REPO/claude-build/ralph-allowlist.txt" "$RALPH_ALLOWLIST_DST"
+  echo "  BOOT $RALPH_ALLOWLIST_DST (bootstrap copy)"
+else
+  echo "  KEEP $RALPH_ALLOWLIST_DST (existing — user-managed)"
+fi
+
+# Ralph runner — symlinked to ~/.local/bin/ralph (must be on PATH).
+# AndersStar-only enforced inside the runner via hostname check.
+mkdir -p "$HOME_DIR/.local/bin"
+link "$REPO/.local/bin/ralph"        "$HOME_DIR/.local/bin/ralph"
+
 # settings.json — bootstrap-then-machine-managed (see manage_settings comment)
 manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"
 manage_settings "$REPO/claude-full/settings.json"     "$HOME_DIR/.claude-full/settings.json"

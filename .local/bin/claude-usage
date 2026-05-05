@@ -1,36 +1,22 @@
 #!/bin/bash
-# claude-usage — wrapper for phuryn/claude-usage at ~/.local/lib/claude-usage/
+# claude-usage — wrapper for phuryn/claude-usage at ~/.local/lib/claude-usage/.
 # Spec: 00_SYSTEM/docs/superpowers/specs/2026-04-11-claude-usage-dashboard.md
-# AND-525: pass-through to upstream cli.py, which already supports stats|today|week|dashboard.
+# AND-525: pass-through to upstream cli.py (stats|today|week|dashboard).
 # Default (no arg) is `dashboard` per the original spec.
 #
-# Multi-profile scan: Vlad runs cc-full (~/.claude-full), cc-build (~/.claude-build), and the
-# default profile (~/.claude). Each writes transcripts to its own CLAUDE_CONFIG_DIR/projects.
-# The wrapper scans all three so stats are unified. All scans merge into ~/.claude/usage.db.
+# Multi-profile scan via launcher: routes through a Python launcher that
+# monkey-patches scanner.DEFAULT_PROJECTS_DIRS to include cc-build + cc-full.
+# This is the only correct way to get the dashboard's `/api/rescan` button
+# (which deletes the DB and re-scans DEFAULT_PROJECTS_DIRS only) to cover all
+# 3 profiles. Doing the multi-profile scan in this Bash wrapper would be
+# undone by the very next rescan-button press.
 
 set -euo pipefail
 
-LIB_DIR="$HOME/.local/lib/claude-usage"
-cd "$LIB_DIR"
+LAUNCHER="$HOME/anders-dotfiles/.local/lib/claude-usage-launcher.py"
 
-SUBCMD="${1:-dashboard}"
-
-# Quiet scans for terminal subcommands (stats/today/week); verbose only for dashboard.
-scan_one() {
-  if [ "$SUBCMD" = "dashboard" ]; then
-    python3 scanner.py "$@"
-  else
-    python3 scanner.py "$@" >/dev/null
-  fi
-}
-
-scan_one
-[ -d "$HOME/.claude-build/projects" ] && scan_one --projects-dir "$HOME/.claude-build/projects"
-[ -d "$HOME/.claude-full/projects" ]  && scan_one --projects-dir "$HOME/.claude-full/projects"
-
-# Pass-through to cli.py
 if [ $# -eq 0 ]; then
-  exec python3 cli.py dashboard
+  exec python3 "$LAUNCHER" dashboard
 else
-  exec python3 cli.py "$@"
+  exec python3 "$LAUNCHER" "$@"
 fi

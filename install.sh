@@ -102,6 +102,11 @@ fi
 mkdir -p "$HOME_DIR/.local/bin"
 link "$REPO/.local/bin/ralph"        "$HOME_DIR/.local/bin/ralph"
 
+# claude-usage wrapper — pass-through to phuryn/claude-usage at ~/.local/lib/claude-usage/.
+# Multi-profile scan (cc-full + cc-build + default) so stats are unified.
+# Linear: AND-525 (terminal stats), AND-524 (AndersDeck panel uses the dashboard).
+link "$REPO/.local/bin/claude-usage" "$HOME_DIR/.local/bin/claude-usage"
+
 # settings.json — bootstrap-then-machine-managed (see manage_settings comment)
 manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"
 manage_settings "$REPO/claude-full/settings.json"     "$HOME_DIR/.claude-full/settings.json"

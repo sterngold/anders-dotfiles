@@ -107,6 +107,25 @@ link "$REPO/.local/bin/ralph"        "$HOME_DIR/.local/bin/ralph"
 # Linear: AND-525 (terminal stats), AND-524 (AndersDeck panel uses the dashboard).
 link "$REPO/.local/bin/claude-usage" "$HOME_DIR/.local/bin/claude-usage"
 
+# claude-usage upstream patches — apply each .patch under .local/lib/claude-usage-patches/
+# to ~/.local/lib/claude-usage/ if the patch hasn't already been applied.
+# Idempotent: `git apply --check` exits 0 if the patch is applicable but not yet
+# applied; non-zero (e.g. "already applied") means skip. Survives `git pull` upstream.
+CLAUDE_USAGE_LIB="$HOME_DIR/.local/lib/claude-usage"
+CLAUDE_USAGE_PATCHES="$REPO/.local/lib/claude-usage-patches"
+if [[ -d "$CLAUDE_USAGE_LIB/.git" && -d "$CLAUDE_USAGE_PATCHES" ]]; then
+  for patch in "$CLAUDE_USAGE_PATCHES"/*.patch; do
+    [[ -f "$patch" ]] || continue
+    patch_name="$(basename "$patch")"
+    if (cd "$CLAUDE_USAGE_LIB" && git apply --check "$patch") 2>/dev/null; then
+      (cd "$CLAUDE_USAGE_LIB" && git apply "$patch")
+      echo "  PATCH $CLAUDE_USAGE_LIB <- $patch_name (applied)"
+    else
+      echo "  PATCH $CLAUDE_USAGE_LIB <- $patch_name (already applied or non-applicable)"
+    fi
+  done
+fi
+
 # settings.json — bootstrap-then-machine-managed (see manage_settings comment)
 manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"
 manage_settings "$REPO/claude-full/settings.json"     "$HOME_DIR/.claude-full/settings.json"

@@ -1,0 +1,17 @@
+diff --git a/dashboard.py b/dashboard.py
+index ebf8d5f..7f0f7b4 100644
+--- a/dashboard.py
++++ b/dashboard.py
+@@ -741,8 +741,11 @@ function applyFilter() {
+   };
+ 
+   // Hourly aggregation (filtered by model + range, then bucketed by UTC hour)
++  // Patch: upstream uses `cutoff` here but never defines it (ReferenceError —
++  // the filter throws before any chart/table renders). Mirror the daily filter
++  // above which uses start/end from getRangeBounds(selectedRange).
+   const hourlySrc = (rawData.hourly_by_model || []).filter(r =>
+-    selectedModels.has(r.model) && (!cutoff || r.day >= cutoff)
++    selectedModels.has(r.model) && (!start || r.day >= start) && (!end || r.day <= end)
+   );
+   const hourlyAgg = aggregateHourly(hourlySrc, hourlyTZ);
+ 

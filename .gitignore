@@ -3,3 +3,5 @@
 *.swo
 *.backup
 *.pre-dotfiles.*
+__pycache__/
+*.pyc

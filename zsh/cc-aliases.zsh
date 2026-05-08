@@ -132,7 +132,7 @@ _cc_launch() {
     cd "$target" || return
     _cc_apply_visuals "$mode" "$badge" "$r" "$g" "$b"
     trap '_cc_reset_visuals' EXIT INT TERM
-    AW_F7_MODEL_CLASS="$model_class" CLAUDE_CONFIG_DIR="$config_dir" claude "$@"
+    AW_F7_MODEL_CLASS="$model_class" CLAUDE_CONFIG_DIR="$config_dir" claude --add-dir "$HOME/Vaults" "$@"
   )
 }
 

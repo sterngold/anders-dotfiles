@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANDERS_CONFIG": "/Users/sterngold/Code/my-projects/00_SYSTEM/anders-config"
+  },
   "cleanupPeriodDays": 90,
   "skillListingBudgetFraction": 0.005,
   "permissions": {

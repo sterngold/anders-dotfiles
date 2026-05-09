@@ -1,4 +1,7 @@
 {
+  "env": {
+    "ANDERS_CONFIG": "/Users/sterngold/Code/my-projects/00_SYSTEM/anders-config"
+  },
   "permissions": {
     "allow": [
       "Bash(ls *)",

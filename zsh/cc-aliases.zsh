@@ -1,6 +1,10 @@
 # Claude Code mode aliases (AND-640) + visual session signals
 # Source from ~/.zprofile: [[ -f ~/anders-dotfiles/zsh/cc-aliases.zsh ]] && source ~/anders-dotfiles/zsh/cc-aliases.zsh
 #
+# Two profiles after 2026-05-09 merge:
+#   cc          — unified everyday profile (was cc-full + cc-build); AW-F7 local; sovereign tools allowed
+#   cc-partner  — clean room (read-only, minimal toolset)
+#
 # Functions (not aliases): cd into $PROJECTS_ROOT in a subshell so cwd is preserved
 # after claude exits. This ensures Claude Code discovers the workspace's .claude/skills
 # chain + CLAUDE.md context regardless of where you invoke cc from.
@@ -18,11 +22,12 @@
 # Multiple matches across categories abort with disambiguation hint.
 # Tab-completion lists all direct children + grandchildren under category dirs.
 #
-#   Examples:  cc                       # workspace root, badge "FULL · workspace"
-#              cc Nudge                 # → 20_PRODUCTS/Nudge,    badge "FULL · Nudge"
-#              cc-build Anderson        # → 10_AI_OS/Anderson,    badge "BUILD · Anderson"
-#              cc-build FoodLog --resume
-#              cc-build 20_PRODUCTS/Nudge   # explicit path also works
+#   Examples:  cc                       # workspace root, badge "CC · workspace"
+#              cc Nudge                 # → 20_PRODUCTS/Nudge,    badge "CC · Nudge"
+#              cc Anderson              # → 10_AI_OS/Anderson,    badge "CC · Anderson"
+#              cc FoodLog --resume
+#              cc 20_PRODUCTS/Nudge     # explicit path also works
+#              cc-partner               # clean-room, badge "PARTNER · workspace"
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 # Emit OSC 1337 SetUserVar=<key>=<base64(value)> — sets an iTerm2 user variable
@@ -138,16 +143,14 @@ _cc_launch() {
 
 # ── Wrappers ──────────────────────────────────────────────────────────────────
 # Color choices are deliberately distinct hues for at-a-glance discrimination:
-#   FULL     = green   (R=  0 G=200 B= 80)  — full toolset, primary work
-#   BUILD    = blue    (R= 40 G=110 B=220)  — lean coding profile
-#   PARTNER  = purple  (R=160 G= 70 B=210)  — partner mode
+#   CC       = green   (R=  0 G=200 B= 80)  — unified everyday profile (post 2026-05-09 merge)
+#   PARTNER  = purple  (R=160 G= 70 B=210)  — clean-room
+#
+# AW-F7 model class: cc uses `local` (sovereign tools allowed), cc-partner uses
+# `remote_egress` (sovereign tools refused — clean room must not see vault data).
 
 cc() {
-  _cc_launch FULL    "$HOME/.claude-full"      0 200  80 remote_egress "$@"
-}
-
-cc-build() {
-  _cc_launch BUILD   "$HOME/.claude-build"    40 110 220 local "$@"
+  _cc_launch CC      "$HOME/.claude-full"      0 200  80 local "$@"
 }
 
 cc-partner() {
@@ -185,4 +188,4 @@ _cc_projects() {
   fi
 }
 # Only register completion if compinit has run (skips non-interactive contexts).
-(( $+functions[compdef] )) && compdef _cc_projects cc cc-build cc-partner
+(( $+functions[compdef] )) && compdef _cc_projects cc cc-partner

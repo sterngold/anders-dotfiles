@@ -189,3 +189,6 @@ _cc_projects() {
 }
 # Only register completion if compinit has run (skips non-interactive contexts).
 (( $+functions[compdef] )) && compdef _cc_projects cc cc-partner
+
+# git-clean — check all repos and submodules are pristine
+alias git-clean='cd ~/Code/my-projects && git status --short && git log origin/main..HEAD --oneline && git branch -a | grep -v "main\|HEAD" && for sub in 10_AI_OS/Anderson 10_AI_OS/AndersMem 20_PRODUCTS/FoodLog 20_PRODUCTS/Momentum 20_PRODUCTS/Nudge 00_SYSTEM/anders-config; do echo "=== $sub ===" && git -C $sub status --short && git -C $sub log origin/main..HEAD --oneline 2>/dev/null && git -C $sub branch -a | grep -v "main\|HEAD"; done'

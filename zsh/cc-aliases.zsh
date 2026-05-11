@@ -157,6 +157,17 @@ cc-partner() {
   _cc_launch PARTNER "$HOME/.claude-partner" 160  70 210 remote_egress "$@"
 }
 
+# Vault shortcut — VladFinance lives outside PROJECTS_ROOT at ~/Vaults/self/Finance/.
+# Uses same green as cc + local model class (sovereign tools allowed).
+cc-finance() {
+  (
+    cd ~/Vaults/self/Finance || return
+    _cc_apply_visuals CC Finance 0 200 80
+    trap '_cc_reset_visuals' EXIT INT TERM
+    AW_F7_MODEL_CLASS=local CLAUDE_CONFIG_DIR="$HOME/.claude-full" claude --add-dir "$HOME/Vaults" "$@"
+  )
+}
+
 # ── Tab completion ────────────────────────────────────────────────────────────
 # Lists every project as the first arg: direct children of $PROJECTS_ROOT plus
 # every grandchild under category dirs. After the project arg, falls back to

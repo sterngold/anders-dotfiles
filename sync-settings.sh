@@ -56,9 +56,7 @@ MACHINE_KEYS  = ["theme", "model", "voiceEnabled", "autoDreamEnabled", "tui",
                  "cleanupPeriodDays", "skillListingBudgetFraction"]
 
 PROFILES = [
-    ("claude",         ".claude"),
     ("claude-full",    ".claude-full"),
-    ("claude-build",   ".claude-build"),
     ("claude-partner", ".claude-partner"),
 ]
 

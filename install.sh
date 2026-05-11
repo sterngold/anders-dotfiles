@@ -10,7 +10,9 @@ HOME_DIR="${HOME}"
 echo "anders-dotfiles: installing from $REPO into $HOME_DIR"
 
 # Ensure target config dirs exist
-for dir in .claude .claude-full .claude-build .claude-partner; do
+# Single-profile architecture (2026-05-11): ~/.claude retired in favor of ~/.claude-full.
+# ~/.claude-build also retired (merged into ~/.claude-full on 2026-05-09).
+for dir in .claude-full .claude-partner; do
   mkdir -p "$HOME_DIR/$dir"
 done
 
@@ -72,15 +74,12 @@ manage_settings() {
   echo "  BOOT $dst (bootstrap copy from template)"
 }
 
-# ~/.claude/ static files (CC never writes these → safe to symlink)
-link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude/CLAUDE.md"
-link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude/RTK.md"
-link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude/statusline.sh"
-link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude/keybindings.json"
-
-# ~/.claude-full/ static files — cc-full gets the same global context loader
+# ~/.claude-full/ static files — single-profile CC gets the global context loader,
+# RTK proxy reference, statusline, and keybindings. (~/.claude retired 2026-05-11.)
 link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude-full/CLAUDE.md"
 link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude-full/RTK.md"
+link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude-full/statusline.sh"
+link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude-full/keybindings.json"
 
 # ~/.claude-build/ — cc-build gets its own CLAUDE.md (Ralph Loop + vibe coding rules,
 # scoped to autonomous-coding mode; cc-full and cc-partner do not load these).
@@ -127,9 +126,8 @@ if [[ -d "$CLAUDE_USAGE_LIB/.git" && -d "$CLAUDE_USAGE_PATCHES" ]]; then
 fi
 
 # settings.json — bootstrap-then-machine-managed (see manage_settings comment)
-manage_settings "$REPO/claude/settings.json"          "$HOME_DIR/.claude/settings.json"
+# Single-profile architecture (2026-05-11): .claude and .claude-build profiles retired.
 manage_settings "$REPO/claude-full/settings.json"     "$HOME_DIR/.claude-full/settings.json"
-manage_settings "$REPO/claude-build/settings.json"    "$HOME_DIR/.claude-build/settings.json"
 manage_settings "$REPO/claude-partner/settings.json"  "$HOME_DIR/.claude-partner/settings.json"
 
 # Skills — cc-full sees the entire skill tree; cc-build and cc-partner are
@@ -141,7 +139,7 @@ manage_settings "$REPO/claude-partner/settings.json"  "$HOME_DIR/.claude-partner
 #   cc-partner:  brief challenge cowork deep-load resume team
 # Do NOT replace the curated dirs with a blanket symlink — that defeats the
 # whole point of cc-build / cc-partner being lean.
-link "$HOME_DIR/.claude/skills" "$HOME_DIR/.claude-full/skills"
+link "$HOME_DIR/Code/my-projects/.claude/skills" "$HOME_DIR/.claude-full/skills"
 
 # Zsh aliases — source line added to ~/.zprofile if not present
 ZSH_SOURCE_LINE="[[ -f $REPO/zsh/cc-aliases.zsh ]] && source $REPO/zsh/cc-aliases.zsh"

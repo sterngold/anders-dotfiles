@@ -23,7 +23,7 @@ jobs:
       node:   ${{ steps.set.outputs.node }}
       swift:  ${{ steps.set.outputs.swift }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - id: set
         run: |
           echo "python=$([ -f pyproject.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }
       - uses: wagoid/commitlint-github-action@v6
         with:
@@ -45,7 +45,7 @@ jobs:
     name: secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with: { fetch-depth: 0 }
       - uses: gitleaks/gitleaks-action@v2
         env:
@@ -57,8 +57,8 @@ jobs:
     if: needs.detect.outputs.python == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
         with: { version: "latest" }
       # --all-extras: PEP 621 [project.optional-dependencies]
       # --all-groups: PEP 735 [dependency-groups]
@@ -83,8 +83,8 @@ jobs:
     if: needs.detect.outputs.node == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       # npm install (not ci) tolerates lockfile drift and missing lockfile.
@@ -103,7 +103,7 @@ jobs:
     if: needs.detect.outputs.swift == 'true'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: swift build (advisory)
         continue-on-error: true
         run: swift build

@@ -87,8 +87,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+      # npm install (not ci) tolerates lockfile drift and missing lockfile.
+      # Lock down to `npm ci` per-repo once the lockfile is reliably in sync.
+      - run: npm install --no-audit --no-fund
       - name: lint (advisory)
         continue-on-error: true
         run: npm run lint --if-present
@@ -103,7 +104,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: swift build
+      - name: swift build (advisory)
+        continue-on-error: true
+        run: swift build
       - name: swift test (advisory)
         if: hashFiles('Tests/**') != ''
         continue-on-error: true

@@ -1,0 +1,9 @@
+# Aider configuration
+# Conventions live in AGENTS.md — read that first.
+
+read:
+  - AGENTS.md
+
+# Conventional Commits enforced by repo CI; aider respects this:
+attribute-commit-message-author: true
+attribute-commit-message-committer: false

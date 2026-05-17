@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Uncomment per-repo language:
+
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule: { interval: "weekly", day: "monday" }
+  #   groups:
+  #     python-minor-patch:
+  #       update-types: ["minor", "patch"]
+
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule: { interval: "weekly", day: "monday" }
+  #   groups:
+  #     npm-minor-patch:
+  #       update-types: ["minor", "patch"]
+
+  # - package-ecosystem: "swift"
+  #   directory: "/"
+  #   schedule: { interval: "weekly", day: "monday" }

@@ -1,0 +1,36 @@
+# Auto-detect text files, normalize line endings to LF on commit.
+* text=auto eol=lf
+
+# Explicit text
+*.md     text
+*.py     text
+*.ts     text
+*.tsx    text
+*.js     text
+*.jsx    text
+*.swift  text
+*.json   text
+*.yaml   text
+*.yml    text
+*.toml   text
+*.html   text
+*.css    text
+*.sh     text eol=lf
+
+# Binary — never diff/merge as text
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+*.tar.gz binary
+*.sqlite binary
+*.db     binary
+
+# Lockfiles — treat as generated in PR diffs
+package-lock.json linguist-generated=true
+pnpm-lock.yaml    linguist-generated=true
+uv.lock           linguist-generated=true
+Package.resolved  linguist-generated=true

@@ -1,0 +1,11 @@
+This repository follows the conventions defined in AGENTS.md at the repo root.
+
+Read AGENTS.md in full before making changes. It contains:
+- Build, test, lint commands
+- Conventional Commits format
+- Branch naming rules
+- PR requirements
+- Secret handling
+- Style and dependency rules
+
+Do not duplicate AGENTS.md content into this file. AGENTS.md is the single source of truth.

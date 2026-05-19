@@ -1,7 +1,12 @@
 #!/bin/bash
 # Sterngold Status Line — C64 palette (ccstatusline guide, Apr 2026)
 # Reads JSON from stdin (Claude Code status line protocol)
-# Primary purple (#7869C4→111) | Light blue (153) | Emphasis purple (177) | Warning yellow (#D5DF7C→228) | Gray (#9A9A9A→249) | Terra cotta (#9A6759→131)
+#
+# Palette uses ANSI 256-color indices (rendered via \033[38;5;Nm below).
+# Names match starship.toml family; actual rendered RGB differs from the
+# hex values in starship.toml because that file uses truecolor.
+#   111 primary purple · 153 light blue · 177 emphasis purple
+#   228 warning yellow · 249 light gray · 241 dim gray · 131 terra cotta
 
 CACHE_DIR="/tmp/claude-statusline"
 LOG="$CACHE_DIR/error.log"

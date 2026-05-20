@@ -140,6 +140,10 @@ manage_settings "$REPO/claude-partner/settings.json"  "$HOME_DIR/.claude-partner
 # Do NOT replace the curated dirs with a blanket symlink — that defeats the
 # whole point of cc-build / cc-partner being lean.
 link "$HOME_DIR/Code/my-projects/.claude/skills" "$HOME_DIR/.claude-full/skills"
+# Custom agents (operator agents for /hi /gn rituals etc.) — discovered from the
+# config dir, mirroring the skills symlink above. Requires `name:` frontmatter on
+# each agent file to register as an invocable subagent_type (added 2026-05-20).
+link "$HOME_DIR/Code/my-projects/.claude/agents" "$HOME_DIR/.claude-full/agents"
 
 # Zsh aliases — source line added to ~/.zprofile if not present
 ZSH_SOURCE_LINE="[[ -f $REPO/zsh/cc-aliases.zsh ]] && source $REPO/zsh/cc-aliases.zsh"

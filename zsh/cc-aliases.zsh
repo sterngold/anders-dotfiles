@@ -19,24 +19,32 @@
 #   2. Two-level search under category dirs (00_SYSTEM, 10_AI_OS, 20_PRODUCTS,
 #      30_DOMAINS, 40_EXPERIMENTS, 50_CLIENTS, 90_ARCHIVE) — exact case-insensitive match
 #   3. Explicit relative path (e.g. 20_PRODUCTS/Nudge) — works as a normal dir
-# Multiple matches across categories abort with disambiguation hint.
-# Tab-completion lists all direct children + grandchildren under category dirs.
+#   4. Sibling repo under the parent of $PROJECTS_ROOT (e.g. ~/Code/the-symbiotic-mind,
+#      ~/Code/seo-ops, ~/Code/ai-context) — case-insensitive exact match.
+#      Skips $PROJECTS_ROOT itself and any *-worktrees container.
+# Multiple matches across categories+siblings abort with disambiguation hint.
+# Tab-completion lists all direct children + grandchildren under category dirs + siblings.
 #
-# Auto-worktree: every `cc <project>` opens an isolated worktree off the parent
-# my-projects repo at $PROJECTS_ROOT/.claude/worktrees/<project>/ on branch
-# wt/<project>. Reuses an existing worktree if one is already there; otherwise
-# creates from `main`. If the project lives inside a submodule, that submodule
-# is auto-init'd inside the worktree. Bare `cc` (no project arg) skips this.
-# Opt-out: pass --no-worktree, or export CC_NO_WORKTREE=1.
+# Auto-worktree: every `cc <project>` opens an isolated worktree at
+# <repo>/.claude/worktrees/<project>/ on branch wt/<project>. The repo is
+# auto-chosen:
+#   - project inside $PROJECTS_ROOT → worktree off $PROJECTS_ROOT (so submodule
+#     projects worktree off the parent and the submodule is auto-init'd inside)
+#   - sibling repo under ~/Code/<name> → worktree off that repo itself
+# Reuses an existing worktree if one is already there; otherwise creates from `main`.
+# Bare `cc` (no project arg) skips worktree entirely. One convention everywhere.
+# Opt-out per call: pass --no-worktree. Opt-out globally: export CC_NO_WORKTREE=1.
 #
-#   Examples:  cc                       # workspace root, badge "CC · workspace", no worktree
-#              cc Nudge                 # → worktree wt/Nudge, cd into 20_PRODUCTS/Nudge
-#              cc Anderson              # → worktree wt/Anderson, cd into 10_AI_OS/Anderson
-#              cc 107                   # → worktree wt/107, cd into 50_CLIENTS/107
+#   Examples:  cc                          # workspace root, no worktree
+#              cc Nudge                    # → my-projects/.claude/worktrees/Nudge/
+#              cc Anderson                 # → my-projects/.claude/worktrees/Anderson/
+#              cc 107                      # → my-projects/.claude/worktrees/107/
+#              cc the-symbiotic-mind       # → the-symbiotic-mind/.claude/worktrees/the-symbiotic-mind/
+#              cc seo-ops                  # → seo-ops/.claude/worktrees/seo-ops/
 #              cc FoodLog --resume
-#              cc 20_PRODUCTS/Nudge     # explicit path also works
-#              cc Nudge --no-worktree   # skip worktree for this call
-#              cc-partner               # clean-room, badge "PARTNER · workspace"
+#              cc 20_PRODUCTS/Nudge        # explicit relative path also works
+#              cc Nudge --no-worktree      # skip worktree for this call
+#              cc-partner                  # clean-room, badge "PARTNER · workspace"
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 # Emit OSC 1337 SetUserVar=<key>=<base64(value)> — sets an iTerm2 user variable
@@ -110,7 +118,7 @@ _cc_resolve_project() {
   if [[ -d "$root/$name" ]]; then
     printf '%s\n' "$root/$name"; return 0
   fi
-  # Rule 2: two-level case-insensitive exact match
+  # Rule 2: two-level case-insensitive exact match under $root.
   local cat dir matches=()
   local lname="${name:l}"
   for cat in "${_CC_CATEGORIES[@]}"; do
@@ -120,12 +128,29 @@ _cc_resolve_project() {
       [[ "${base:l}" == "$lname" ]] && matches+=("$dir")
     done
   done
+  # Rule 4: sibling repo under parent of $root (e.g. ~/Code/<name>).
+  # Excludes $root itself and any *-worktrees container dir.
+  local siblings_root="${root:h}"
+  local root_name="${root:t}"
+  if [[ -d "$siblings_root" && "$siblings_root" != "$root" ]]; then
+    for dir in "$siblings_root"/*(N/); do
+      local base="${dir:t}"
+      [[ "$base" == "$root_name" || "$base" == *-worktrees ]] && continue
+      [[ "${base:l}" == "$lname" ]] && matches+=("$dir")
+    done
+  fi
   case ${#matches[@]} in
-    0) printf 'cc: no project named %s under %s\n' "$name" "$root" >&2; return 1 ;;
+    0) printf 'cc: no project named %s under %s or %s\n' "$name" "$root" "$siblings_root" >&2; return 1 ;;
     1) printf '%s\n' "${matches[1]}"; return 0 ;;
     *) printf 'cc: ambiguous project name %s — matches:\n' "$name" >&2
-       local m; for m in "${matches[@]}"; do printf '  %s\n' "${m#$root/}" >&2; done
-       printf 'Use the full path: cc-* %s\n' "${matches[1]#$root/}" >&2
+       local m
+       for m in "${matches[@]}"; do
+         if [[ "$m" == "$root/"* ]]; then
+           printf '  %s\n' "${m#$root/}" >&2
+         else
+           printf '  %s\n' "$m" >&2
+         fi
+       done
        return 1 ;;
   esac
 }
@@ -201,13 +226,29 @@ _cc_launch() {
     target=$(_cc_resolve_project "$root" "$1") || return 1
     badge="${target:t}"
     shift
-    # Auto-worktree: every cc <project> opens in its own worktree off $root.
-    # Skip if --no-worktree, $CC_NO_WORKTREE, or $root isn't a git repo.
-    if (( ! no_worktree )) && [[ -z "$CC_NO_WORKTREE" ]] \
-         && git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
-      local subpath="${target#$root/}"
-      [[ "$subpath" == "$target" ]] && subpath=""
-      target=$(_cc_ensure_worktree "$root" "$subpath" "$badge") || return 1
+    # Auto-worktree: every cc <project> opens in <repo>/.claude/worktrees/<name>/.
+    # Repo root depends on where the target lives:
+    #   - inside $root → use $root (submodule projects worktree off the parent)
+    #   - else        → use the target's own git toplevel (sibling repos like
+    #                    ~/Code/the-symbiotic-mind)
+    # Skip entirely if --no-worktree, $CC_NO_WORKTREE, or target isn't in any git repo.
+    if (( ! no_worktree )) && [[ -z "$CC_NO_WORKTREE" ]]; then
+      local repo_root subpath
+      if [[ "$target" == "$root" || "$target" == "$root/"* ]] \
+           && git -C "$root" rev-parse --git-dir >/dev/null 2>&1; then
+        repo_root="$root"
+        subpath="${target#$root/}"
+        [[ "$subpath" == "$target" ]] && subpath=""
+      else
+        repo_root=$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)
+        if [[ -n "$repo_root" ]]; then
+          subpath="${target#$repo_root/}"
+          [[ "$subpath" == "$target" ]] && subpath=""
+        fi
+      fi
+      if [[ -n "$repo_root" ]]; then
+        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$badge") || return 1
+      fi
     fi
   else
     target="$root"; badge="workspace"
@@ -256,11 +297,11 @@ _cc_projects() {
   [[ -z "$root" || ! -d "$root" ]] && return 1
   local -a projects
   local cat dir base
-  # Direct children (non-category dirs only — keep the project list clean).
+  # Direct children of $root (non-category dirs only — keep the list clean).
   for dir in "$root"/*(N/); do
     base="${dir:t}"
     case "$base" in
-      00_SYSTEM|10_AI_OS|20_PRODUCTS|30_DOMAINS|40_EXPERIMENTS|90_ARCHIVE) ;;
+      00_SYSTEM|10_AI_OS|20_PRODUCTS|30_DOMAINS|40_EXPERIMENTS|50_CLIENTS|90_ARCHIVE) ;;
       *) projects+=("$base") ;;
     esac
   done
@@ -271,6 +312,17 @@ _cc_projects() {
       projects+=("${dir:t}")
     done
   done
+  # Siblings under the parent of $root (e.g. ~/Code/the-symbiotic-mind),
+  # excluding $root itself and any *-worktrees container.
+  local siblings_root="${root:h}"
+  local root_name="${root:t}"
+  if [[ -d "$siblings_root" && "$siblings_root" != "$root" ]]; then
+    for dir in "$siblings_root"/*(N/); do
+      base="${dir:t}"
+      [[ "$base" == "$root_name" || "$base" == *-worktrees ]] && continue
+      projects+=("$base")
+    done
+  fi
   if (( CURRENT == 2 )); then
     _describe -t projects 'project' projects
   else

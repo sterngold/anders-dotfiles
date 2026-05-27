@@ -34,6 +34,7 @@
 # Reuses an existing worktree if one is already there; otherwise creates from `main`.
 # Bare `cc` (no project arg) skips worktree entirely. One convention everywhere.
 # Opt-out per call: pass --no-worktree. Opt-out globally: export CC_NO_WORKTREE=1.
+# Opt-out per project: place a .no-worktree file at the project root (content/writing projects).
 #
 #   Examples:  cc                          # workspace root, no worktree
 #              cc Nudge                    # → my-projects/.claude/worktrees/Nudge/
@@ -231,7 +232,9 @@ _cc_launch() {
     #   - inside $root → use $root (submodule projects worktree off the parent)
     #   - else        → use the target's own git toplevel (sibling repos like
     #                    ~/Code/the-symbiotic-mind)
-    # Skip entirely if --no-worktree, $CC_NO_WORKTREE, or target isn't in any git repo.
+    # Per-project opt-out: a .no-worktree file at the project root skips worktree creation.
+    [[ -f "$target/.no-worktree" ]] && no_worktree=1
+    # Skip entirely if --no-worktree, $CC_NO_WORKTREE, .no-worktree file, or target isn't in any git repo.
     if (( ! no_worktree )) && [[ -z "$CC_NO_WORKTREE" ]]; then
       local repo_root subpath
       if [[ "$target" == "$root" || "$target" == "$root/"* ]] \

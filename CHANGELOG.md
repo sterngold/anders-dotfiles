@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/sterngold/anders-dotfiles/compare/v1.0.0...v1.1.0) (2026-05-27)
+
+
+### Features
+
+* per-project .no-worktree marker file support in cc ([25cf505](https://github.com/sterngold/anders-dotfiles/commit/25cf50524d9af7ff2d84b43e4cb4221387d5b00a))
+
 ## 1.0.0 (2026-05-17)
 
 

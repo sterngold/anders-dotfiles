@@ -15,9 +15,24 @@
 #   15  AGENTS.md drifted from CLAUDE.md + AGENTS.addendum.md (run render-agents.sh)
 #   16  render-agents.sh --check errored — AGENTS.md state unverifiable (source unreadable?)
 #
-# Usage: bash doctor.sh   (or: make doctor)
+# Usage: bash doctor.sh           # human-readable bullets + summary (default)
+#        bash doctor.sh --json    # machine-readable: {"exit_code":N,"findings":[…]}
+#        make doctor
+#
+# --json contract: a single JSON object on stdout, no human bullets. Each finding
+# is {id, code, status, summary} where id = section ("symlinks"/"imports"/…),
+# status = "pass"|"fail", code = the 10–16 class (0 on pass). exit_code mirrors
+# the human-mode exit. Dependency-free (no jq/python) so it runs on any host.
 
 set -uo pipefail   # NOT -e: we want to run every check and aggregate.
+
+JSON_MODE=0
+for arg in "$@"; do
+  case "$arg" in
+    --json) JSON_MODE=1 ;;
+    *) echo "doctor.sh: unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -47,13 +62,29 @@ MANAGED_LINKS=(
 # Track the LOWEST failing-class code so the result matches the header's
 # "first failing class in listed order" contract regardless of check order.
 fail_code=0
-note_fail() { local code="$1"; shift; echo "  ✗ [$code] $*"; { [[ $fail_code -eq 0 ]] || (( code < fail_code )); } && fail_code="$code"; }
-note_ok()   { echo "  ✓ $*"; }
+# JSON-mode accumulation. SECTION is the id each finding carries; section()
+# sets it (and prints the human header only outside --json).
+findings=()
+SECTION=""
+json_escape() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '%s' "$s"; }
+add_finding() {  # code status summary…
+  local code="$1" status="$2"; shift 2
+  findings+=("{\"id\":\"$(json_escape "$SECTION")\",\"code\":$code,\"status\":\"$status\",\"summary\":\"$(json_escape "$*")\"}")
+}
+section() { SECTION="$1"; (( JSON_MODE )) || echo "[$1]"; }
+note_fail() {
+  local code="$1"; shift
+  if (( JSON_MODE )); then add_finding "$code" fail "$*"; else echo "  ✗ [$code] $*"; fi
+  { [[ $fail_code -eq 0 ]] || (( code < fail_code )); } && fail_code="$code"
+}
+note_ok() {
+  if (( JSON_MODE )); then add_finding 0 pass "$*"; else echo "  ✓ $*"; fi
+}
 
-echo "context doctor — host=$(uname -s) HOME=$HOME_DIR PROJECTS_ROOT=$PROJECTS_ROOT"
+(( JSON_MODE )) || echo "context doctor — host=$(uname -s) HOME=$HOME_DIR PROJECTS_ROOT=$PROJECTS_ROOT"
 
 # --- 10: symlink health -----------------------------------------------------
-echo "[symlinks]"
+section symlinks
 for link in "${MANAGED_LINKS[@]}"; do
   if [[ -L "$link" ]]; then
     if [[ -e "$link" ]]; then note_ok "$link -> $(readlink "$link")"
@@ -62,7 +93,7 @@ for link in "${MANAGED_LINKS[@]}"; do
 done
 
 # --- 11 / 13: @import targets + vault presence ------------------------------
-echo "[imports]"
+section imports
 if [[ -f "$ROUTER" ]]; then
   # Extract line-start '@<path>' import tokens (column-0 only — Claude Code and
   # this scan both ignore indented/back-ticked @-paths).
@@ -97,7 +128,7 @@ fi
 # NOTE: substring scan — it also matches an absolute path written in PROSE
 # (e.g. documenting "never use /Users/..."). Committed context files must
 # describe such paths WITHOUT the literal (see claude/CLAUDE.md's vault section).
-echo "[literals]"
+section literals
 leak_re='/Users/|/home/[^/]+/'
 for f in "${COMMITTED_CONTEXT[@]}"; do
   [[ -e "$f" ]] || continue                 # not present on this host — nothing to scan
@@ -108,14 +139,14 @@ for f in "${COMMITTED_CONTEXT[@]}"; do
   # into "clean" would let this safety check pass vacuously on an unreadable file.
   hits="$(grep -nE "$leak_re" "$f")"; rc=$?
   case $rc in
-    0) note_fail 12 "leaked absolute path in committed file: $f"; printf '%s\n' "$hits" | sed 's/^/      /' ;;
+    0) note_fail 12 "leaked absolute path in committed file: $f"; (( JSON_MODE )) || printf '%s\n' "$hits" | sed 's/^/      /' ;;
     1) note_ok "no leaked literals: ${f#$REPO/}" ;;
     *) note_fail 12 "grep errored (rc=$rc) scanning $f — cannot verify" ;;
   esac
 done
 
 # --- 14: rendered .mcp.json -------------------------------------------------
-echo "[mcp]"
+section mcp
 if [[ -d "$PROJECTS_ROOT" ]]; then
   if [[ -f "$PROJECTS_ROOT/.mcp.json" ]]; then note_ok "rendered: $PROJECTS_ROOT/.mcp.json"
   else note_fail 14 "workspace present but $PROJECTS_ROOT/.mcp.json not rendered (run render-mcp.sh)"; fi
@@ -126,7 +157,7 @@ fi
 # --- 15: AGENTS.md render drift ---------------------------------------------
 # AGENTS.md must equal CLAUDE.md + AGENTS.addendum.md. render-agents.sh --check
 # is the source of truth; it no-ops (exit 0) on a host without the workspace.
-echo "[agents]"
+section agents
 if [[ -d "$PROJECTS_ROOT" && -f "$PROJECTS_ROOT/CLAUDE.md" ]]; then
   PROJECTS_ROOT="$PROJECTS_ROOT" bash "$SCRIPT_DIR/render-agents.sh" --check >/dev/null 2>&1
   case $? in
@@ -138,6 +169,12 @@ else
   note_ok "no workspace on this host — AGENTS.md render not required"
 fi
 
-echo ""
-if [[ $fail_code -eq 0 ]]; then echo "doctor: all green ✓"; else echo "doctor: FAILED (exit $fail_code)"; fi
+if (( JSON_MODE )); then
+  joined=""
+  if (( ${#findings[@]} )); then IFS=,; joined="${findings[*]}"; unset IFS; fi
+  printf '{"exit_code":%d,"findings":[%s]}\n' "$fail_code" "$joined"
+else
+  echo ""
+  if [[ $fail_code -eq 0 ]]; then echo "doctor: all green ✓"; else echo "doctor: FAILED (exit $fail_code)"; fi
+fi
 exit "$fail_code"

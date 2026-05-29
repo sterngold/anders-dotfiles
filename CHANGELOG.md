@@ -8,6 +8,19 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/sterngold/anders-dotfiles/compare/v1.3.0...v1.4.0) (2026-05-29)
+
+
+### Features
+
+* **claude:** add Working lens for the Constitution's Orientation ([41b869e](https://github.com/sterngold/anders-dotfiles/commit/41b869e24674b5eab1e6513b64f3cad3f882fa25))
+* **doctor:** add --json emitter to context-sync/doctor.sh ([3203903](https://github.com/sterngold/anders-dotfiles/commit/320390336411a7435932bb59b5059a6b5fba2656))
+
+
+### Bug Fixes
+
+* **doctor:** keep --json stdout-pure + escape control chars in summaries ([2dfe184](https://github.com/sterngold/anders-dotfiles/commit/2dfe184e671355f6a78d275efbc60ee03685c274))
+
 ## [1.3.0](https://github.com/sterngold/anders-dotfiles/compare/v1.2.0...v1.3.0) (2026-05-29)
 
 

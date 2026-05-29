@@ -81,19 +81,37 @@ link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude-full/RTK.md"
 link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude-full/statusline.sh"
 link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude-full/keybindings.json"
 
+# ~/.codex/AGENTS.md — give Codex the SAME global context as Claude's home loader,
+# host-portably (target derived from $REPO per-host, so /home/<user>/... works on
+# Linux). Only when Codex is set up here; never impose the layout on hosts without
+# ~/.codex. link() backs up any existing real file (e.g. the empty placeholder) first.
+if [[ -d "$HOME_DIR/.codex" ]]; then
+  link "$REPO/claude/CLAUDE.md"      "$HOME_DIR/.codex/AGENTS.md"
+else
+  echo "  SKIP ~/.codex/AGENTS.md (no ~/.codex on this host — Codex not set up)"
+fi
+
 # ~/.claude-build/ — cc-build gets its own CLAUDE.md (Ralph Loop + vibe coding rules,
 # scoped to autonomous-coding mode; cc-full and cc-partner do not load these).
 # Spec: KnowledgeBase/specs/2026-05-04-ralph-loop-cc-build.md
-link "$REPO/claude-build/CLAUDE.md"  "$HOME_DIR/.claude-build/CLAUDE.md"
+# Guarded: ~/.claude-build was retired on single-profile hosts (consolidated into
+# ~/.claude-full 2026-05-09). Skip cleanly when the profile dir is absent so the
+# install completes — without resurrecting a retired profile. (Pre-existing block;
+# left intact for hosts that still run cc-build.)
+if [[ -d "$HOME_DIR/.claude-build" ]]; then
+  link "$REPO/claude-build/CLAUDE.md"  "$HOME_DIR/.claude-build/CLAUDE.md"
 
-# Ralph allowlist — bootstrap-then-machine-managed. User edits to add projects.
-# Hardblock paths (Vaults/Health/Finance/Coaching) are in the runner, NOT here.
-RALPH_ALLOWLIST_DST="$HOME_DIR/.claude-build/ralph-allowlist.txt"
-if [[ ! -e "$RALPH_ALLOWLIST_DST" ]]; then
-  cp "$REPO/claude-build/ralph-allowlist.txt" "$RALPH_ALLOWLIST_DST"
-  echo "  BOOT $RALPH_ALLOWLIST_DST (bootstrap copy)"
+  # Ralph allowlist — bootstrap-then-machine-managed. User edits to add projects.
+  # Hardblock paths (Vaults/Health/Finance/Coaching) are in the runner, NOT here.
+  RALPH_ALLOWLIST_DST="$HOME_DIR/.claude-build/ralph-allowlist.txt"
+  if [[ ! -e "$RALPH_ALLOWLIST_DST" ]]; then
+    cp "$REPO/claude-build/ralph-allowlist.txt" "$RALPH_ALLOWLIST_DST"
+    echo "  BOOT $RALPH_ALLOWLIST_DST (bootstrap copy)"
+  else
+    echo "  KEEP $RALPH_ALLOWLIST_DST (existing — user-managed)"
+  fi
 else
-  echo "  KEEP $RALPH_ALLOWLIST_DST (existing — user-managed)"
+  echo "  SKIP ~/.claude-build/* (profile retired on this host — single-profile)"
 fi
 
 # Ralph runner — symlinked to ~/.local/bin/ralph (must be on PATH).
@@ -171,6 +189,12 @@ else
     echo "  SKIP fabrication-check.py not found at $FCHECK_SRC (submodule missing?)"
     echo "       Install manually: ln -sf $FCHECK_SRC $FCHECK_DST"
 fi
+
+# .mcp.json — render host-portable absolute paths from the committed template.
+# The live .mcp.json is gitignored (per-host); a fresh host has none until this
+# runs. render-mcp.sh no-ops cleanly if the workspace isn't present on this host.
+PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-mcp.sh" \
+  || echo "  WARN render-mcp.sh failed (non-fatal)"
 
 echo ""
 echo "Done. Open a new shell or: source ~/.zprofile"

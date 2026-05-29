@@ -12,7 +12,7 @@
 #
 # Usage:
 #   bash render-agents.sh            # rewrite AGENTS.md if stale (idempotent)
-#   bash render-agents.sh --check    # exit 1 if AGENTS.md is stale; write nothing
+#   bash render-agents.sh --check    # 0=in sync · 1=stale · 2=error; writes nothing
 #   PROJECTS_ROOT=/path bash render-agents.sh
 #
 # Called by install.sh; safe to run standalone. No-ops cleanly on a host that
@@ -47,9 +47,16 @@ render() {
 }
 
 if [[ "${1:-}" == "--check" ]]; then
-  if [[ -f "$OUT" ]] && diff <(render) "$OUT" >/dev/null 2>&1; then
-    exit 0
+  # Distinguish three states so callers (doctor.sh) give the right remediation:
+  #   0 = in sync · 1 = stale (re-render) · 2 = error (source/output unreadable)
+  # render() is captured explicitly so a failing source read surfaces as 2, not
+  # a false "stale" — process substitution would hide the failure from set -e.
+  if [[ ! -f "$OUT" ]]; then
+    echo "render-agents: AGENTS.md missing — run: bash render-agents.sh" >&2; exit 1
   fi
+  rendered="$(render)" || { echo "render-agents: ERROR — cannot render from CLAUDE.md/AGENTS.addendum.md (unreadable?)" >&2; exit 2; }
+  current="$(cat "$OUT")"  || { echo "render-agents: ERROR — cannot read $OUT" >&2; exit 2; }
+  if [[ "$rendered" == "$current" ]]; then exit 0; fi
   echo "render-agents: AGENTS.md is STALE vs CLAUDE.md + AGENTS.addendum.md — run: bash render-agents.sh" >&2
   exit 1
 fi

@@ -5,6 +5,12 @@ Load and apply the Anders Constitution from:
 
 Use it as a lens, not a script. Challenge me against it.
 
+## Working lens (in service of the Constitution's Orientation)
+
+- Leave me more capable, not more dependent — teach the fundamentals, don't just do the task.
+- Prefer the root-node problem; flag when I'm reaching for the shallow one.
+- When I lean on AI to skip understanding, challenge me (per "challenge me against it" above).
+
 ## Read before editing (every project)
 
 Before editing any file, read it first. Before modifying a function, grep for all callers. Research before you edit.

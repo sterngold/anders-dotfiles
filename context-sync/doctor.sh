@@ -66,7 +66,12 @@ fail_code=0
 # sets it (and prints the human header only outside --json).
 findings=()
 SECTION=""
-json_escape() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '%s' "$s"; }
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"
+  s="${s//$'\t'/\\t}"; s="${s//$'\r'/\\r}"; s="${s//$'\n'/\\n}"
+  printf '%s' "$s"
+}
 add_finding() {  # code status summary…
   local code="$1" status="$2"; shift 2
   findings+=("{\"id\":\"$(json_escape "$SECTION")\",\"code\":$code,\"status\":\"$status\",\"summary\":\"$(json_escape "$*")\"}")
@@ -137,7 +142,11 @@ for f in "${COMMITTED_CONTEXT[@]}"; do
   fi
   # Branch on grep's THREE states: 0=found, 1=clean, >1=error. Folding error
   # into "clean" would let this safety check pass vacuously on an unreadable file.
-  hits="$(grep -nE "$leak_re" "$f")"; rc=$?
+  # 2>/dev/null keeps --json stdout-pure: an incidental grep diagnostic (binary
+  # match, rc>=2) must NOT leak to stderr where a caller merging streams would
+  # corrupt the JSON. The rc>=2 branch below still converts a real grep error
+  # into a code-12 finding, so no information is lost.
+  hits="$(grep -nE "$leak_re" "$f" 2>/dev/null)"; rc=$?
   case $rc in
     0) note_fail 12 "leaked absolute path in committed file: $f"; (( JSON_MODE )) || printf '%s\n' "$hits" | sed 's/^/      /' ;;
     1) note_ok "no leaked literals: ${f#$REPO/}" ;;

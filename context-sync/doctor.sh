@@ -12,6 +12,7 @@
 #   12  host-specific absolute path literal leaked into a committed file
 #   13  ~/Vaults referenced by a router but absent on this host
 #   14  rendered .mcp.json missing (workspace present but never rendered)
+#   15  AGENTS.md drifted from CLAUDE.md + AGENTS.addendum.md (run render-agents.sh)
 #
 # Usage: bash doctor.sh   (or: make doctor)
 
@@ -119,6 +120,20 @@ if [[ -d "$PROJECTS_ROOT" ]]; then
   else note_fail 14 "workspace present but $PROJECTS_ROOT/.mcp.json not rendered (run render-mcp.sh)"; fi
 else
   note_ok "no workspace on this host ($PROJECTS_ROOT) — .mcp.json not required"
+fi
+
+# --- 15: AGENTS.md render drift ---------------------------------------------
+# AGENTS.md must equal CLAUDE.md + AGENTS.addendum.md. render-agents.sh --check
+# is the source of truth; it no-ops (exit 0) on a host without the workspace.
+echo "[agents]"
+if [[ -d "$PROJECTS_ROOT" && -f "$PROJECTS_ROOT/CLAUDE.md" ]]; then
+  if PROJECTS_ROOT="$PROJECTS_ROOT" bash "$SCRIPT_DIR/render-agents.sh" --check >/dev/null 2>&1; then
+    note_ok "AGENTS.md in sync with CLAUDE.md + AGENTS.addendum.md"
+  else
+    note_fail 15 "AGENTS.md drifted from CLAUDE.md + AGENTS.addendum.md (run: bash $SCRIPT_DIR/render-agents.sh)"
+  fi
+else
+  note_ok "no workspace on this host — AGENTS.md render not required"
 fi
 
 echo ""

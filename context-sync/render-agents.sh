@@ -63,6 +63,7 @@ fi
 tmp="$(mktemp "${OUT}.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 render > "$tmp"
+chmod 644 "$tmp"   # mktemp creates 0600; AGENTS.md is a public committed doc, not a secret
 mv "$tmp" "$OUT"
 trap - EXIT
 echo "render-agents: wrote $OUT"

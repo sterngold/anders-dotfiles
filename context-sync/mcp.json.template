@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "plugin:telegram:telegram": {
+      "command": "${HOME}/.bun/bin/bun",
+      "args": [
+        "${HOME}/.claude-full/plugins/cache/claude-plugins-official/telegram/0.0.6/server.ts"
+      ],
+      "env": {
+        "TELEGRAM_STATE_DIR": "${HOME}/.claude-full/channels/telegram"
+      }
+    },
+    "anderson": {
+      "command": "${HOME}/.venvs/anderson/bin/python",
+      "args": [
+        "${PROJECTS_ROOT}/tools/mcp-guard.py",
+        "wrap",
+        "anderson",
+        "--",
+        "${PROJECTS_ROOT}/10_AI_OS/Anderson/.venv/bin/python",
+        "${PROJECTS_ROOT}/10_AI_OS/Anderson/mcp-local-models.py"
+      ],
+      "env": {
+        "ANDERS_CHAT_MODEL": "llama3.3:70b"
+      }
+    }
+  }
+}

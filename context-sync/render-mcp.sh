@@ -59,6 +59,8 @@ if command -v python3 >/dev/null 2>&1; then
 elif command -v jq >/dev/null 2>&1; then
   jq empty "$tmp" 2>/dev/null \
     || { echo "render-mcp: ERROR rendered config is not valid JSON — $OUT left unchanged" >&2; exit 1; }
+else
+  echo "render-mcp: NOTE no python3/jq available — wrote $OUT WITHOUT JSON validation" >&2
 fi
 
 mv "$tmp" "$OUT"

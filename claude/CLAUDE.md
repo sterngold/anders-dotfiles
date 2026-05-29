@@ -22,6 +22,8 @@ filesystem root rather than `~`); `make doctor` fails with exit 12 if one leaks 
 To activate, add an import line of the form `@~/Vaults/<area>/<note>.md` at the
 start of a line below this paragraph — for example `@~/Vaults/mind/agent-context.md`.
 Rules:
+- The import must start at column 0 (not indented, not under a list bullet) —
+  both Claude Code's loader and `make doctor`'s `^@` scan only see line-start imports.
 - One writer (the Mac); other hosts treat the rendered context as read-only.
 - Keep this router lean (< 200 lines) and import depth shallow (≤ 4 hops).
 - Every active import target must exist on this host, or `make doctor` fails

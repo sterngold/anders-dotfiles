@@ -35,11 +35,17 @@ COMMITTED_CONTEXT=(
 MANAGED_LINKS=(
   "$HOME_DIR/.claude-full/CLAUDE.md"
   "$HOME_DIR/.claude-full/RTK.md"
+  "$HOME_DIR/.claude-full/statusline.sh"
+  "$HOME_DIR/.claude-full/keybindings.json"
+  "$HOME_DIR/.claude-full/skills"
+  "$HOME_DIR/.claude-full/agents"
   "$HOME_DIR/.codex/AGENTS.md"
 )
 
-fail_code=0        # remembers the FIRST failing class (lowest-in-order)
-note_fail() { local code="$1"; shift; echo "  ✗ [$code] $*"; [[ $fail_code -eq 0 ]] && fail_code="$code"; }
+# Track the LOWEST failing-class code so the result matches the header's
+# "first failing class in listed order" contract regardless of check order.
+fail_code=0
+note_fail() { local code="$1"; shift; echo "  ✗ [$code] $*"; { [[ $fail_code -eq 0 ]] || (( code < fail_code )); } && fail_code="$code"; }
 note_ok()   { echo "  ✓ $*"; }
 
 echo "context doctor — host=$(uname -s) HOME=$HOME_DIR PROJECTS_ROOT=$PROJECTS_ROOT"
@@ -56,8 +62,13 @@ done
 # --- 11 / 13: @import targets + vault presence ------------------------------
 echo "[imports]"
 if [[ -f "$ROUTER" ]]; then
-  # Extract '@<path>' import tokens (ignore email-like and code-fenced noise).
-  while IFS= read -r imp; do
+  # Extract line-start '@<path>' import tokens (column-0 only — Claude Code and
+  # this scan both ignore indented/back-ticked @-paths).
+  mapfile -t IMPORTS < <(grep -oE '^@[^[:space:]]+' "$ROUTER" | sed 's/^@//')
+  if [[ ${#IMPORTS[@]} -eq 0 ]]; then
+    note_ok "router has no @imports to resolve"
+  fi
+  for imp in "${IMPORTS[@]}"; do
     [[ -z "$imp" ]] && continue
     # Expand leading ~ and resolve relative imports against the router's dir.
     case "$imp" in
@@ -75,22 +86,30 @@ if [[ -f "$ROUTER" ]]; then
         *) note_fail 11 "missing import: @$imp" ;;
       esac
     fi
-  done < <(grep -oE '^@[^[:space:]]+' "$ROUTER" | sed 's/^@//')
+  done
 else
   note_fail 11 "router not found: $ROUTER"
 fi
 
 # --- 12: leaked host-specific absolute literals -----------------------------
+# NOTE: substring scan — it also matches an absolute path written in PROSE
+# (e.g. documenting "never use /Users/..."). Committed context files must
+# describe such paths WITHOUT the literal (see claude/CLAUDE.md's vault section).
 echo "[literals]"
 leak_re='/Users/|/home/[^/]+/'
 for f in "${COMMITTED_CONTEXT[@]}"; do
-  [[ -f "$f" ]] || continue
-  if grep -nE "$leak_re" "$f" >/dev/null 2>&1; then
-    note_fail 12 "leaked absolute path in committed file: $f"
-    grep -nE "$leak_re" "$f" | sed 's/^/      /'
-  else
-    note_ok "no leaked literals: ${f#$REPO/}"
+  [[ -e "$f" ]] || continue                 # not present on this host — nothing to scan
+  if [[ ! -r "$f" ]]; then
+    note_fail 12 "cannot read committed file (treat as suspect): $f"; continue
   fi
+  # Branch on grep's THREE states: 0=found, 1=clean, >1=error. Folding error
+  # into "clean" would let this safety check pass vacuously on an unreadable file.
+  hits="$(grep -nE "$leak_re" "$f")"; rc=$?
+  case $rc in
+    0) note_fail 12 "leaked absolute path in committed file: $f"; printf '%s\n' "$hits" | sed 's/^/      /' ;;
+    1) note_ok "no leaked literals: ${f#$REPO/}" ;;
+    *) note_fail 12 "grep errored (rc=$rc) scanning $f — cannot verify" ;;
+  esac
 done
 
 # --- 14: rendered .mcp.json -------------------------------------------------

@@ -8,6 +8,19 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/sterngold/anders-dotfiles/compare/v1.1.0...v1.2.0) (2026-05-29)
+
+
+### Features
+
+* portable AI-context foundation (render .mcp.json, doctor, vault hook) ([#11](https://github.com/sterngold/anders-dotfiles/issues/11)) ([1650e01](https://github.com/sterngold/anders-dotfiles/commit/1650e01f07e034a88f3c300b93237dba5246ed90))
+
+
+### Bug Fixes
+
+* **context-sync:** harden doctor + render per PR review ([#13](https://github.com/sterngold/anders-dotfiles/issues/13)) ([0af1883](https://github.com/sterngold/anders-dotfiles/commit/0af18834650f955ba1aa2b3dbbdd626272d30d13))
+* **render-mcp:** announce when JSON validation is skipped ([#14](https://github.com/sterngold/anders-dotfiles/issues/14)) ([87ca1e7](https://github.com/sterngold/anders-dotfiles/commit/87ca1e7aafc66285e7074c2bb8219d4a2ddd900c))
+
 ## [1.1.0](https://github.com/sterngold/anders-dotfiles/compare/v1.0.0...v1.1.0) (2026-05-27)
 
 

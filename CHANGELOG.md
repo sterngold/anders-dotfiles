@@ -8,6 +8,19 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/sterngold/anders-dotfiles/compare/v1.2.0...v1.3.0) (2026-05-29)
+
+
+### Features
+
+* **context-sync:** render-agents.sh — generate AGENTS.md from CLAUDE.md + addendum ([07a1c49](https://github.com/sterngold/anders-dotfiles/commit/07a1c49652516d56855c2abdd6f0725feaa75017))
+
+
+### Bug Fixes
+
+* **context-sync:** render-agents --check distinguishes stale from error ([f4d1230](https://github.com/sterngold/anders-dotfiles/commit/f4d1230005b04eabb8dc8b6bb83ad7064614ade2))
+* **context-sync:** render-agents.sh chmod 644 the output ([921aa3e](https://github.com/sterngold/anders-dotfiles/commit/921aa3e6904cfcc72d49e2197d6f085dc9e774e0))
+
 ## [1.2.0](https://github.com/sterngold/anders-dotfiles/compare/v1.1.0...v1.2.0) (2026-05-29)
 
 

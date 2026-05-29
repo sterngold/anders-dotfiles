@@ -135,8 +135,14 @@ if [[ -d "$CLAUDE_USAGE_LIB/.git" && -d "$CLAUDE_USAGE_PATCHES" ]]; then
     [[ -f "$patch" ]] || continue
     patch_name="$(basename "$patch")"
     if (cd "$CLAUDE_USAGE_LIB" && git apply --check "$patch") 2>/dev/null; then
-      (cd "$CLAUDE_USAGE_LIB" && git apply "$patch")
-      echo "  PATCH $CLAUDE_USAGE_LIB <- $patch_name (applied)"
+      # Guard the real apply: --check can pass but apply still fail (TOCTOU vs an
+      # upstream pull, mode conflict). Under set -e an unguarded failure here would
+      # abort the whole install mid-run; this patch is a convenience, so warn + skip.
+      if (cd "$CLAUDE_USAGE_LIB" && git apply "$patch"); then
+        echo "  PATCH $CLAUDE_USAGE_LIB <- $patch_name (applied)"
+      else
+        echo "  WARN  git apply $patch_name failed after --check passed — claude-usage patch skipped"
+      fi
     else
       echo "  PATCH $CLAUDE_USAGE_LIB <- $patch_name (already applied or non-applicable)"
     fi
@@ -194,7 +200,7 @@ fi
 # The live .mcp.json is gitignored (per-host); a fresh host has none until this
 # runs. render-mcp.sh no-ops cleanly if the workspace isn't present on this host.
 PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-mcp.sh" \
-  || echo "  WARN render-mcp.sh failed (non-fatal)"
+  || echo "  WARN render-mcp.sh exited $? — .mcp.json may be stale/missing; re-run 'bash $REPO/context-sync/render-mcp.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
 
 echo ""
 echo "Done. Open a new shell or: source ~/.zprofile"

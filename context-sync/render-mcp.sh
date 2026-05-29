@@ -47,5 +47,20 @@ if [[ -f "$OUT" ]] && [[ "$(cat "$OUT")" == "$content" ]]; then
   exit 0
 fi
 
-printf '%s\n' "$content" > "$OUT"
+# Write to a temp first, validate as JSON, then move into place — so a malformed
+# render (e.g. a path containing a quote/backslash) never clobbers a good .mcp.json.
+tmp="$(mktemp "${OUT}.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+printf '%s\n' "$content" > "$tmp"
+
+if command -v python3 >/dev/null 2>&1; then
+  python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$tmp" 2>/dev/null \
+    || { echo "render-mcp: ERROR rendered config is not valid JSON — $OUT left unchanged" >&2; exit 1; }
+elif command -v jq >/dev/null 2>&1; then
+  jq empty "$tmp" 2>/dev/null \
+    || { echo "render-mcp: ERROR rendered config is not valid JSON — $OUT left unchanged" >&2; exit 1; }
+fi
+
+mv "$tmp" "$OUT"
+trap - EXIT
 echo "render-mcp: wrote $OUT"

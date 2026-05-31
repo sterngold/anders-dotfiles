@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# assemble-agents.sh — assemble a repo's AGENTS.md from two hand-edited sources:
-#   1. <repo>/AGENTS.header.md          — per-repo header (§1–2: identity + build/test/lint)
-#   2. context-sync/agents-canon.md     — shared canon (§3–13), ONE source for all repos
+# assemble-agents.sh — assemble a repo's AGENTS.md from up to three hand-edited sources:
+#   1. <repo>/AGENTS.header.md          — per-repo header (§1–2: identity + build/test/lint)  [required]
+#   2. context-sync/agents-canon.md     — shared canon (§3–13), ONE source for all repos      [required]
+#   3. <repo>/AGENTS.body.md            — rich repo-specific, ALL-AGENT content (§14+)         [optional]
+#
+# The optional body is for repos (e.g. anders-config) whose operational doc is too rich for
+# the §1–2 header but is NOT Claude-only (Codex/Cursor need it too) and is NOT shared canon.
+# When present it is appended after the canon, framed by a `---` separator. When absent, the
+# output is byte-identical to a header+canon assembly (so body-less repos are unaffected).
 #
 # AGENTS.md is the ASSEMBLED artifact (canonical for Codex/Cursor/etc. — flat inline text,
 # no references). CLAUDE.md stays a STATIC thin pointer (`@AGENTS.md`) — this script never
@@ -32,6 +38,7 @@ if [[ -z "$REPO" ]]; then
 fi
 REPO="${REPO%/}"
 HEADER="$REPO/AGENTS.header.md"
+BODY="$REPO/AGENTS.body.md"   # optional — appended after the canon if present
 OUT="$REPO/AGENTS.md"
 
 # ---- source validation (all failures = exit 2) ----------------------------
@@ -56,6 +63,12 @@ assemble() {
     }
     { print }
   ' "$CANON"
+  # Optional repo-specific, all-agent body (§14+), appended after the canon with a separator.
+  # Absent body → nothing emitted → output identical to a header+canon assembly.
+  if [[ -f "$BODY" ]]; then
+    printf '\n---\n\n'
+    cat "$BODY"
+  fi
 }
 
 # ---- --check: 0 in sync · 1 stale/missing · 2 error ------------------------

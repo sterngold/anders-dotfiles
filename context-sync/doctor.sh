@@ -12,8 +12,9 @@
 #   12  host-specific absolute path literal leaked into a committed file
 #   13  ~/Vaults referenced by a router but absent on this host
 #   14  rendered .mcp.json missing (workspace present but never rendered)
-#   15  AGENTS.md drifted from CLAUDE.md + AGENTS.addendum.md (run render-agents.sh)
-#   16  render-agents.sh --check errored — AGENTS.md state unverifiable (source unreadable?)
+#   15  CLAUDE.md drifted from AGENTS.md + CLAUDE.addendum.md (run render-claude.sh),
+#       OR canonical AGENTS.md missing while workspace present (post-flip source absent)
+#   16  render-claude.sh --check errored — CLAUDE.md state unverifiable (source unreadable?)
 #
 # Usage: bash doctor.sh           # human-readable bullets + summary (default)
 #        bash doctor.sh --json    # machine-readable: {"exit_code":N,"findings":[…]}
@@ -163,19 +164,27 @@ else
   note_ok "no workspace on this host ($PROJECTS_ROOT) — .mcp.json not required"
 fi
 
-# --- 15: AGENTS.md render drift ---------------------------------------------
-# AGENTS.md must equal CLAUDE.md + AGENTS.addendum.md. render-agents.sh --check
-# is the source of truth; it no-ops (exit 0) on a host without the workspace.
+# --- 15: CLAUDE.md render drift ---------------------------------------------
+# CLAUDE.md must equal AGENTS.md + CLAUDE.addendum.md (AGENTS.md is the canonical
+# hand-edited source post-2026-05-31 flip). render-claude.sh --check is the source
+# of truth; it no-ops (exit 0) only on a host without the workspace at all.
+# GUARD (GPT-5.5 council 2026-05-31): if the workspace IS present but canonical
+# AGENTS.md is absent, that is a HARD FAIL, not a silent skip — the source needed
+# to generate CLAUDE.md is missing.
 section agents
-if [[ -d "$PROJECTS_ROOT" && -f "$PROJECTS_ROOT/CLAUDE.md" ]]; then
-  PROJECTS_ROOT="$PROJECTS_ROOT" bash "$SCRIPT_DIR/render-agents.sh" --check >/dev/null 2>&1
-  case $? in
-    0) note_ok "AGENTS.md in sync with CLAUDE.md + AGENTS.addendum.md" ;;
-    1) note_fail 15 "AGENTS.md drifted from CLAUDE.md + AGENTS.addendum.md (run: bash $SCRIPT_DIR/render-agents.sh)" ;;
-    *) note_fail 16 "render-agents.sh --check errored — AGENTS.md unverifiable (check CLAUDE.md/AGENTS.addendum.md readability)" ;;
-  esac
+if [[ -d "$PROJECTS_ROOT" ]]; then
+  if [[ ! -f "$PROJECTS_ROOT/AGENTS.md" ]]; then
+    note_fail 15 "canonical AGENTS.md missing at $PROJECTS_ROOT — cannot generate CLAUDE.md (post-flip source absent)"
+  else
+    PROJECTS_ROOT="$PROJECTS_ROOT" bash "$SCRIPT_DIR/render-claude.sh" --check >/dev/null 2>&1
+    case $? in
+      0) note_ok "CLAUDE.md in sync with AGENTS.md + CLAUDE.addendum.md" ;;
+      1) note_fail 15 "CLAUDE.md drifted from AGENTS.md + CLAUDE.addendum.md (run: bash $SCRIPT_DIR/render-claude.sh)" ;;
+      *) note_fail 16 "render-claude.sh --check errored — CLAUDE.md unverifiable (check AGENTS.md/CLAUDE.addendum.md readability)" ;;
+    esac
+  fi
 else
-  note_ok "no workspace on this host — AGENTS.md render not required"
+  note_ok "no workspace on this host — CLAUDE.md render not required"
 fi
 
 if (( JSON_MODE )); then

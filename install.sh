@@ -202,10 +202,11 @@ fi
 PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-mcp.sh" \
   || echo "  WARN render-mcp.sh exited $? — .mcp.json may be stale/missing; re-run 'bash $REPO/context-sync/render-mcp.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
 
-# AGENTS.md — regenerate from CLAUDE.md + AGENTS.addendum.md so the Codex-facing
-# file can't drift from the Claude rules. No-ops if the workspace isn't present.
-PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-agents.sh" \
-  || echo "  WARN render-agents.sh exited $? — AGENTS.md may be stale; re-run 'bash $REPO/context-sync/render-agents.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
+# CLAUDE.md — regenerate from canonical AGENTS.md + CLAUDE.addendum.md so the
+# Claude-facing file can't drift from the shared canon. No-ops if no workspace.
+# (Flipped 2026-05-31: AGENTS.md is now the hand-edited cross-tool source.)
+PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-claude.sh" \
+  || echo "  WARN render-claude.sh exited $? — CLAUDE.md may be stale; re-run 'bash $REPO/context-sync/render-claude.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
 
 echo ""
 echo "Done. Open a new shell or: source ~/.zprofile"

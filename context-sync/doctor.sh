@@ -12,9 +12,9 @@
 #   12  host-specific absolute path literal leaked into a committed file
 #   13  ~/Vaults referenced by a router but absent on this host
 #   14  rendered .mcp.json missing (workspace present but never rendered)
-#   15  CLAUDE.md drifted from AGENTS.md + CLAUDE.addendum.md (run render-claude.sh),
-#       OR canonical AGENTS.md missing while workspace present (post-flip source absent)
-#   16  render-claude.sh --check errored — CLAUDE.md state unverifiable (source unreadable?)
+#   15  canonical AGENTS.md missing while workspace present, OR CLAUDE.md is not a
+#       thin pointer (missing column-0 `@AGENTS.md` import) — thin-pointer model
+#   16  (reserved — was render-claude.sh error; unused under the thin-pointer model)
 #
 # Usage: bash doctor.sh           # human-readable bullets + summary (default)
 #        bash doctor.sh --json    # machine-readable: {"exit_code":N,"findings":[…]}
@@ -164,27 +164,24 @@ else
   note_ok "no workspace on this host ($PROJECTS_ROOT) — .mcp.json not required"
 fi
 
-# --- 15: CLAUDE.md render drift ---------------------------------------------
-# CLAUDE.md must equal AGENTS.md + CLAUDE.addendum.md (AGENTS.md is the canonical
-# hand-edited source post-2026-05-31 flip). render-claude.sh --check is the source
-# of truth; it no-ops (exit 0) only on a host without the workspace at all.
-# GUARD (GPT-5.5 council 2026-05-31): if the workspace IS present but canonical
-# AGENTS.md is absent, that is a HARD FAIL, not a silent skip — the source needed
-# to generate CLAUDE.md is missing.
+# --- 15: canonical AGENTS.md + thin-pointer CLAUDE.md -----------------------
+# Thin-pointer model (2026-05-31): AGENTS.md is the hand-edited canonical source;
+# CLAUDE.md is a STATIC pointer that imports it via a column-0 `@AGENTS.md`.
+# Nothing is generated → no render drift. We assert structural integrity instead:
+#   - canonical AGENTS.md present (HARD FAIL if missing while workspace present —
+#     GPT-5.5 guard 2026-05-31), and
+#   - CLAUDE.md (if present) actually points to it via `@AGENTS.md`.
 section agents
 if [[ -d "$PROJECTS_ROOT" ]]; then
   if [[ ! -f "$PROJECTS_ROOT/AGENTS.md" ]]; then
-    note_fail 15 "canonical AGENTS.md missing at $PROJECTS_ROOT — cannot generate CLAUDE.md (post-flip source absent)"
+    note_fail 15 "canonical AGENTS.md missing at $PROJECTS_ROOT (thin-pointer source absent)"
+  elif [[ -f "$PROJECTS_ROOT/CLAUDE.md" ]] && ! grep -qE '^@AGENTS\.md' "$PROJECTS_ROOT/CLAUDE.md"; then
+    note_fail 15 "CLAUDE.md is not a thin pointer — missing column-0 '@AGENTS.md' import"
   else
-    PROJECTS_ROOT="$PROJECTS_ROOT" bash "$SCRIPT_DIR/render-claude.sh" --check >/dev/null 2>&1
-    case $? in
-      0) note_ok "CLAUDE.md in sync with AGENTS.md + CLAUDE.addendum.md" ;;
-      1) note_fail 15 "CLAUDE.md drifted from AGENTS.md + CLAUDE.addendum.md (run: bash $SCRIPT_DIR/render-claude.sh)" ;;
-      *) note_fail 16 "render-claude.sh --check errored — CLAUDE.md unverifiable (check AGENTS.md/CLAUDE.addendum.md readability)" ;;
-    esac
+    note_ok "AGENTS.md canonical; CLAUDE.md points to it (@AGENTS.md)"
   fi
 else
-  note_ok "no workspace on this host — CLAUDE.md render not required"
+  note_ok "no workspace on this host — context check not required"
 fi
 
 if (( JSON_MODE )); then

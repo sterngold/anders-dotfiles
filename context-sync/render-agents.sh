@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# ⚠ DEPRECATED 2026-05-31 — superseded by render-claude.sh.
-# The canonical direction was FLIPPED: AGENTS.md is now the hand-edited cross-tool
-# source, and CLAUDE.md is generated (see render-claude.sh + doctor.sh §15).
-# This script is retained ONLY for reversibility/history — it is no longer wired
-# into install.sh or doctor.sh. Do NOT run it against a flipped workspace: it would
-# overwrite canonical AGENTS.md with a re-render of the generated CLAUDE.md.
+# ⚠ DEPRECATED 2026-05-31 — no longer wired into install.sh or doctor.sh.
+# The context-file model was changed to THIN-POINTER: AGENTS.md is the hand-edited
+# canonical cross-tool source, and CLAUDE.md is a STATIC pointer that imports it via
+# `@AGENTS.md` (nothing is generated — see doctor.sh §15). This script is retained
+# only for reversibility/history. Do NOT run it against the current workspace: it
+# would overwrite canonical AGENTS.md by re-rendering it from the pointer CLAUDE.md.
 #
 # render-agents.sh — regenerate $PROJECTS_ROOT/AGENTS.md from CLAUDE.md + the
 # Codex-only addendum, so the two can never silently drift.

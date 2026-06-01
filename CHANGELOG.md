@@ -8,6 +8,15 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/sterngold/anders-dotfiles/compare/v1.5.0...v1.6.0) (2026-05-31)
+
+
+### Features
+
+* **context-sync:** AGENTS.md assembly machinery — agents-canon.md + assemble-agents.sh (AND-1295) ([d437c2b](https://github.com/sterngold/anders-dotfiles/commit/d437c2bbf5c3b2446bc01087ba6191d26c987b85))
+* **context-sync:** flip canonical direction CLAUDE.md -&gt; AGENTS.md ([b90ed26](https://github.com/sterngold/anders-dotfiles/commit/b90ed2614c03a90f42f8d6bf711fa713d04367df))
+* **context-sync:** optional AGENTS.body.md slot in assemble-agents.sh (AND-1298) ([f46795f](https://github.com/sterngold/anders-dotfiles/commit/f46795f47ef655bce300fcd003d8fe0d8453477b))
+
 ## [1.5.0](https://github.com/sterngold/anders-dotfiles/compare/v1.4.0...v1.5.0) (2026-05-31)
 
 

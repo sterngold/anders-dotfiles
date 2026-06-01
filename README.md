@@ -50,6 +50,18 @@ Path assumptions are machine-specific via `PROJECTS_ROOT` (set in `~/.zprofile` 
 
 `settings.json` hooks and `statusline.sh` use `${PROJECTS_ROOT}` — add it to `~/.zprofile` on any new machine before installing.
 
+`cc <name>` resolves projects under `$PROJECTS_ROOT` (workspace + categories) and, by
+default, the parent dir (`~/Code` siblings). To let `cc` find projects that live elsewhere,
+set a colon-separated `CC_PROJECT_ROOTS` in `~/.zprofile`:
+
+```sh
+export CC_PROJECT_ROOTS="$HOME/Code:$HOME/work:$HOME/clients"
+```
+
+Each entry is scanned for an exact (case-insensitive) name match. For a one-off in an
+unlisted location, `cc /abs/path` or `cc ~/anywhere/proj` resolves the path directly.
+Auto-worktrees base off each repo's true default branch (`origin/HEAD`), not local `main`.
+
 ## Updating
 
 Edit files in this repo, commit, push. On other machines: `git pull && ./install.sh` (no-op if symlinks already correct).

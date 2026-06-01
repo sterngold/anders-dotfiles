@@ -15,15 +15,19 @@
 # profile interpolates these into its Badge Text. On exit, the trap restores defaults.
 #
 # Optional first arg = project name. Resolution (in order):
+#   0. Explicit path — absolute (cc /abs/proj, cc ~/anywhere/proj) or any existing
+#      directory from cwd (cc ./x, cc ../sibling). Zero-config; works anywhere.
 #   1. Direct child of $PROJECTS_ROOT (back-compat for pre-Work-3.0 layout)
 #   2. Two-level search under category dirs (00_SYSTEM, 10_AI_OS, 20_PRODUCTS,
 #      30_DOMAINS, 40_EXPERIMENTS, 50_CLIENTS, 90_ARCHIVE) — exact case-insensitive match
 #   3. Explicit relative path (e.g. 20_PRODUCTS/Nudge) — works as a normal dir
-#   4. Sibling repo under the parent of $PROJECTS_ROOT (e.g. ~/Code/the-symbiotic-mind,
-#      ~/Code/seo-ops, ~/Code/ai-context) — case-insensitive exact match.
+#   4. Exact case-insensitive name match under any configured search root. Default
+#      root = parent of $PROJECTS_ROOT (~/Code, covering the sibling repos). Extend
+#      with CC_PROJECT_ROOTS (colon-separated) in ~/.zprofile to add project homes
+#      anywhere, e.g.  export CC_PROJECT_ROOTS="$HOME/Code:$HOME/work:$HOME/clients".
 #      Skips $PROJECTS_ROOT itself and any *-worktrees container.
-# Multiple matches across categories+siblings abort with disambiguation hint.
-# Tab-completion lists all direct children + grandchildren under category dirs + siblings.
+# Multiple matches across categories+roots abort with disambiguation hint.
+# Tab-completion lists all direct children + grandchildren under category dirs + every root.
 #
 # Auto-worktree: every `cc <project>` opens an isolated worktree at
 # <repo>/.claude/worktrees/<project>/ on branch wt/<project>. The repo is
@@ -31,7 +35,9 @@
 #   - project inside $PROJECTS_ROOT → worktree off $PROJECTS_ROOT (so submodule
 #     projects worktree off the parent and the submodule is auto-init'd inside)
 #   - sibling repo under ~/Code/<name> → worktree off that repo itself
-# Reuses an existing worktree if one is already there; otherwise creates from `main`.
+# Reuses an existing worktree if one is already there; otherwise creates it off the
+# repo's TRUE default branch (origin/HEAD, learned from the remote when unset) — not
+# blindly local `main`, which may be a stale/orphan branch. See _cc_worktree_base.
 # Bare `cc` (no project arg) skips worktree entirely. One convention everywhere.
 # Opt-out per call: pass --no-worktree. Opt-out globally: export CC_NO_WORKTREE=1.
 # Opt-out per project: place a .no-worktree file at the project root (content/writing projects).
@@ -106,11 +112,21 @@ _CC_CATEGORIES=(00_SYSTEM 10_AI_OS 20_PRODUCTS 30_DOMAINS 40_EXPERIMENTS 50_CLIE
 # Resolve a project name → absolute directory.
 # Echoes the resolved path on stdout, or prints an error to stderr and returns 1.
 # Resolution rules (first match wins):
+#   0. explicit path — absolute or any existing dir from cwd
 #   1. $root/$name (direct child)
 #   2. $root/<category>/$name (two-level, case-insensitive, exact)
-#   3. $name itself if it is already a directory under $root
+#   3. $name as a relative path under $root
+#   4. exact name match under each CC_PROJECT_ROOTS entry (default: ${root:h} = ~/Code)
 _cc_resolve_project() {
   local root="$1" name="$2"
+  # Rule 0: an explicit path (absolute, or any existing dir from cwd) → use as-is.
+  # Tilde is already shell-expanded before we see $name, so this covers `cc ~/x/proj`.
+  if [[ "$name" == /* && -d "$name" ]]; then
+    printf '%s\n' "${name:A}"; return 0
+  fi
+  if [[ "$name" == */* && -d "$name" ]]; then     # cwd-relative path like ./x or ../y
+    printf '%s\n' "${name:A}"; return 0           # :A → absolute, normalized
+  fi
   # Rule 3: explicit relative path like "20_PRODUCTS/Nudge"
   if [[ "$name" == */* && -d "$root/$name" ]]; then
     printf '%s\n' "$root/$name"; return 0
@@ -129,19 +145,28 @@ _cc_resolve_project() {
       [[ "${base:l}" == "$lname" ]] && matches+=("$dir")
     done
   done
-  # Rule 4: sibling repo under parent of $root (e.g. ~/Code/<name>).
+  # Rule 4: scan configured project roots for a case-insensitive exact name match.
+  # Default = parent of $PROJECTS_ROOT (~/Code). Extend in ~/.zprofile, e.g.:
+  #   export CC_PROJECT_ROOTS="$HOME/Code:$HOME/work:$HOME/clients"
   # Excludes $root itself and any *-worktrees container dir.
-  local siblings_root="${root:h}"
-  local root_name="${root:t}"
-  if [[ -d "$siblings_root" && "$siblings_root" != "$root" ]]; then
-    for dir in "$siblings_root"/*(N/); do
+  local -a roots
+  if [[ -n "$CC_PROJECT_ROOTS" ]]; then
+    roots=("${(@s/:/)CC_PROJECT_ROOTS}")
+  else
+    roots=("${root:h}")
+  fi
+  typeset -U matches            # dedupe identical paths across overlapping roots
+  local sroot
+  for sroot in "${roots[@]}"; do
+    [[ -d "$sroot" && "$sroot" != "$root" ]] || continue
+    for dir in "$sroot"/*(N/); do
       local base="${dir:t}"
-      [[ "$base" == "$root_name" || "$base" == *-worktrees ]] && continue
+      [[ "$dir" == "$root" || "$base" == *-worktrees ]] && continue
       [[ "${base:l}" == "$lname" ]] && matches+=("$dir")
     done
-  fi
+  done
   case ${#matches[@]} in
-    0) printf 'cc: no project named %s under %s or %s\n' "$name" "$root" "$siblings_root" >&2; return 1 ;;
+    0) printf 'cc: no project named %s under %s or %s\n' "$name" "$root" "${roots[*]}" >&2; return 1 ;;
     1) printf '%s\n' "${matches[1]}"; return 0 ;;
     *) printf 'cc: ambiguous project name %s — matches:\n' "$name" >&2
        local m
@@ -156,11 +181,39 @@ _cc_resolve_project() {
   esac
 }
 
+# Resolve the base ref for a NEW worktree: the repo's true default branch.
+# Prefers the remote's recorded default (origin/HEAD) over local `main`, which may be
+# stale/orphan (e.g. a repo whose real trunk is a feature branch). Order:
+#   origin/HEAD → (learn it once via the remote if unset) → origin/main → origin/master
+#   → local main → local master → HEAD.
+# The common path (origin/HEAD already set at clone) is network-free.
+_cc_worktree_base() {
+  local repo_root="$1" ref
+  ref=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  if [[ -z "$ref" ]] && git -C "$repo_root" remote get-url origin >/dev/null 2>&1; then
+    git -C "$repo_root" remote set-head origin --auto >/dev/null 2>&1   # one network call, non-fatal
+    ref=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  fi
+  if [[ -z "$ref" ]]; then
+    if   git -C "$repo_root" show-ref --verify --quiet refs/remotes/origin/main;   then ref=origin/main
+    elif git -C "$repo_root" show-ref --verify --quiet refs/remotes/origin/master; then ref=origin/master
+    fi
+  fi
+  if [[ -z "$ref" ]]; then
+    if   git -C "$repo_root" show-ref --verify --quiet refs/heads/main;   then ref=main
+    elif git -C "$repo_root" show-ref --verify --quiet refs/heads/master; then ref=master
+    else ref=HEAD
+    fi
+  fi
+  printf '%s\n' "$ref"
+}
+
 # Ensure a worktree exists for $project_name off $repo_root.
 # Echoes the final target path (worktree root, or worktree+subpath) on stdout.
 # Args: repo_root, project_subpath (relative to repo_root, may be ""), project_name
 # Reuses the worktree at $repo_root/.claude/worktrees/$project_name on branch
-# wt/$project_name. Creates it from main (then master, then HEAD) on first use.
+# wt/$project_name. Creates it off the repo's true default branch (origin/HEAD,
+# via _cc_worktree_base — NOT blindly local `main`) on first use.
 # Auto-inits the relevant submodule inside the worktree when the project lives
 # inside one (e.g. cc Nudge → 20_PRODUCTS/Nudge submodule).
 _cc_ensure_worktree() {
@@ -174,13 +227,7 @@ _cc_ensure_worktree() {
       git -C "$repo_root" worktree add "$wt_root" "$wt_branch" >&2 || return 1
     else
       local base
-      if git -C "$repo_root" show-ref --verify --quiet refs/heads/main; then
-        base=main
-      elif git -C "$repo_root" show-ref --verify --quiet refs/heads/master; then
-        base=master
-      else
-        base=HEAD
-      fi
+      base=$(_cc_worktree_base "$repo_root")
       git -C "$repo_root" worktree add -b "$wt_branch" "$wt_root" "$base" >&2 || return 1
     fi
   fi
@@ -255,6 +302,14 @@ _cc_launch() {
     fi
   else
     target="$root"; badge="workspace"
+    # Non-breaking hint: bare `cc` always opens the workspace root, even when run from
+    # inside another repo/project. Don't change where it lands — just stop being silent.
+    local _cwd_top
+    _cwd_top=$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)
+    if [[ -n "$_cwd_top" && "$_cwd_top" != "$root" && "$_cwd_top" != *"/.claude/worktrees/"* ]]; then
+      printf 'cc: bare `cc` opens the workspace root (%s) — you are in %s.\n' "${root:t}" "${_cwd_top:t}" >&2
+      printf '    To open this project instead:  cc %s\n' "${_cwd_top:t}" >&2
+    fi
   fi
   (
     cd "$target" || return
@@ -315,17 +370,24 @@ _cc_projects() {
       projects+=("${dir:t}")
     done
   done
-  # Siblings under the parent of $root (e.g. ~/Code/the-symbiotic-mind),
-  # excluding $root itself and any *-worktrees container.
-  local siblings_root="${root:h}"
-  local root_name="${root:t}"
-  if [[ -d "$siblings_root" && "$siblings_root" != "$root" ]]; then
-    for dir in "$siblings_root"/*(N/); do
+  # Projects under each configured search root (default: parent of $root = ~/Code),
+  # excluding $root itself and any *-worktrees container. Mirrors _cc_resolve_project Rule 4.
+  local -a roots
+  if [[ -n "$CC_PROJECT_ROOTS" ]]; then
+    roots=("${(@s/:/)CC_PROJECT_ROOTS}")
+  else
+    roots=("${root:h}")
+  fi
+  typeset -U projects           # dedupe names across overlapping roots
+  local sroot
+  for sroot in "${roots[@]}"; do
+    [[ -d "$sroot" && "$sroot" != "$root" ]] || continue
+    for dir in "$sroot"/*(N/); do
       base="${dir:t}"
-      [[ "$base" == "$root_name" || "$base" == *-worktrees ]] && continue
+      [[ "$dir" == "$root" || "$base" == *-worktrees ]] && continue
       projects+=("$base")
     done
-  fi
+  done
   if (( CURRENT == 2 )); then
     _describe -t projects 'project' projects
   else

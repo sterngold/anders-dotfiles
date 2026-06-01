@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1](https://github.com/sterngold/anders-dotfiles/compare/v1.6.0...v1.6.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **cc:** true-default worktree base, bare-cc hint, configurable project roots ([#19](https://github.com/sterngold/anders-dotfiles/issues/19)) ([6eac378](https://github.com/sterngold/anders-dotfiles/commit/6eac3786b72e55d3ab6f7865b9437529769ea907))
+
 ## [1.6.0](https://github.com/sterngold/anders-dotfiles/compare/v1.5.0...v1.6.0) (2026-05-31)
 
 

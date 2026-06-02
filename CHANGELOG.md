@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/sterngold/anders-dotfiles/compare/v1.7.0...v1.8.0) (2026-06-02)
+
+
+### Features
+
+* **cc:** worktree freshness check on reuse + --new for parallel worktrees ([e7026e7](https://github.com/sterngold/anders-dotfiles/commit/e7026e7996b81e47b0bff206516ee824e85ad04b))
+
 ## [1.7.0](https://github.com/sterngold/anders-dotfiles/compare/v1.6.1...v1.7.0) (2026-06-02)
 
 

@@ -192,7 +192,7 @@ fi
 # 1. Packages — idempotent + fast when already satisfied. --no-upgrade keeps existing
 #    versions; --no-lock avoids writing Brewfile.lock.json into the repo.
 if command -v brew >/dev/null 2>&1; then
-  if brew bundle --file="$REPO/Brewfile" --no-lock --no-upgrade >/dev/null 2>&1; then
+  if brew bundle --file="$REPO/Brewfile" --no-upgrade >/dev/null 2>&1; then
     echo "  OK   brew bundle (terminal stack)"
   else
     echo "  WARN brew bundle had issues — run manually: brew bundle --file=$REPO/Brewfile"

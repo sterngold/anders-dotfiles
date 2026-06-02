@@ -472,6 +472,14 @@ cc-finance() {
   )
 }
 
+# ── Health check ──────────────────────────────────────────────────────────────
+# `ccdoctor` runs the cc-resolver invariant check (sibling cc-doctor.zsh): asserts
+# every active project resolves uniquely via `cc <name>`. Run it after archiving,
+# renaming, or moving a project, or after editing this file. Exit 0 = green, 1 =
+# a project doesn't resolve, 3 = the check couldn't run. The path is computed
+# script-relative (%x = this file at source time) so it survives a repo move.
+alias ccdoctor="zsh ${${(%):-%x}:A:h}/cc-doctor.zsh"
+
 # ── Tab completion ────────────────────────────────────────────────────────────
 # Lists every project as the first arg: direct children of $PROJECTS_ROOT plus
 # every grandchild under category dirs. After the project arg, falls back to

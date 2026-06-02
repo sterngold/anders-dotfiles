@@ -181,10 +181,8 @@ _cc_resolve_project() {
          for dir in "$root/$cat"/*(N/); do _allnames+=("${dir:t}"); done
        done
        for dir in "$root"/*(N/); do
-         case "${dir:t}" in
-           00_SYSTEM|10_AI_OS|20_PRODUCTS|30_DOMAINS|40_EXPERIMENTS|50_CLIENTS|90_ARCHIVE) ;;
-           *) _allnames+=("${dir:t}") ;;
-         esac
+         [[ "${dir:t}" == [0-9][0-9]_* ]] && continue   # skip every NN_ category prefix (incl. 90_ARCHIVE); future-proof vs a hardcoded list
+         _allnames+=("${dir:t}")
        done
        for sroot in "${roots[@]}"; do
          [[ -d "$sroot" && "$sroot" != "$root" ]] || continue
@@ -486,10 +484,8 @@ _cc_projects() {
   # Direct children of $root (non-category dirs only — keep the list clean).
   for dir in "$root"/*(N/); do
     base="${dir:t}"
-    case "$base" in
-      00_SYSTEM|10_AI_OS|20_PRODUCTS|30_DOMAINS|40_EXPERIMENTS|50_CLIENTS|90_ARCHIVE) ;;
-      *) projects+=("$base") ;;
-    esac
+    [[ "$base" == [0-9][0-9]_* ]] && continue   # skip every NN_ category prefix (incl. 90_ARCHIVE); future-proof vs a hardcoded list
+    projects+=("$base")
   done
   # Grandchildren under each category.
   for cat in "${_CC_CATEGORIES[@]}"; do

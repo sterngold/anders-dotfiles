@@ -70,12 +70,24 @@ for sroot in "${roots[@]}"; do
 done
 
 # ---- INV-1: every active project resolves uniquely ----
+# Run each probe in a SUBSHELL so a resolver abort (e.g. a future nounset trap on its
+# miss path, like the two this script already hit) can't silently kill the checker and
+# get mis-reported as a collision — the precise crash-masquerading-as-miss class this
+# guard exists to catch. Capture once (no TOCTOU re-run), then classify by the
+# resolver's own 'cc:' verdict prefix: a genuine no-match/ambiguous is a breach;
+# anything else (no cc: line, or a non-1 rc) is a harness error → exit 3.
 typeset -a broken=()
-typeset n why
+typeset n out rc firstline
 for n in "${active[@]}"; do
-  if ! _cc_resolve_project "$ROOT" "$n" >/dev/null 2>&1; then
-    why="$(_cc_resolve_project "$ROOT" "$n" 2>&1 | head -1)"
-    broken+=("$n — ${why#cc: }")
+  out="$( ( _cc_resolve_project "$ROOT" "$n" ) 2>&1 )"; rc=$?
+  (( rc == 0 )) && continue
+  firstline="${out%%$'\n'*}"                       # first line, no array subscript (nounset-safe)
+  if [[ "$firstline" == 'cc: '* ]]; then
+    broken+=("$n — ${firstline#cc: }")
+  else
+    print -ru2 -- "cc-doctor: resolver aborted on '$n' (rc=$rc) — harness/setup error, not a resolution verdict"
+    [[ -n "$firstline" ]] && print -ru2 -- "  $firstline"
+    exit 3
   fi
 done
 

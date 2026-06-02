@@ -172,7 +172,44 @@ _cc_resolve_project() {
     done
   done
   case ${#matches[@]} in
-    0) printf 'cc: no project named %s under %s or %s\n' "$name" "$root" "${roots[*]}" >&2; return 1 ;;
+    0) printf 'cc: no project named %s under %s or %s\n' "$name" "$root" "${roots[*]}" >&2
+       # Did-you-mean: rank every known project name by edit distance to the typo and
+       # suggest the closest few. Only runs on a miss, so the cost is irrelevant.
+       local -a _allnames=()
+       for cat in "${_CC_CATEGORIES[@]}"; do
+         [[ -d "$root/$cat" ]] || continue
+         for dir in "$root/$cat"/*(N/); do _allnames+=("${dir:t}"); done
+       done
+       for dir in "$root"/*(N/); do
+         case "${dir:t}" in
+           00_SYSTEM|10_AI_OS|20_PRODUCTS|30_DOMAINS|40_EXPERIMENTS|50_CLIENTS|90_ARCHIVE) ;;
+           *) _allnames+=("${dir:t}") ;;
+         esac
+       done
+       for sroot in "${roots[@]}"; do
+         [[ -d "$sroot" && "$sroot" != "$root" ]] || continue
+         for dir in "$sroot"/*(N/); do
+           [[ "$dir" == "$root" || "${dir:t}" == *-worktrees ]] && continue
+           _allnames+=("${dir:t}")
+         done
+       done
+       typeset -U _allnames
+       # Tolerance scales with the typed length (min 2): a 1-char slip in a long name
+       # like "knowldgebase" → "KnowledgeBase" is still caught, short names stay strict.
+       local -i _thresh=$(( ${#lname} / 3 )); (( _thresh < 2 )) && _thresh=2
+       local -a _within=()
+       local _cand
+       for _cand in "${_allnames[@]}"; do
+         _cc_levenshtein "$lname" "$_cand"          # result in $REPLY
+         (( REPLY <= _thresh )) && _within+=("${(l:2::0:)REPLY}:$_cand")
+       done
+       if (( ${#_within} )); then
+         local -a _sorted=( "${(@o)_within}" )      # zero-padded keys → lexical = nearest-first
+         local -a _sugg=() _it
+         for _it in "${_sorted[@]:0:3}"; do _sugg+=("${_it#*:}"); done
+         printf 'cc: did you mean: %s?\n' "${(j:, :)_sugg}" >&2
+       fi
+       return 1 ;;
     1) printf '%s\n' "${matches[1]}"; return 0 ;;
     *) printf 'cc: ambiguous project name %s — matches:\n' "$name" >&2
        local m
@@ -185,6 +222,34 @@ _cc_resolve_project() {
        done
        return 1 ;;
   esac
+}
+
+# Levenshtein edit distance between $1 and $2 (case-insensitive). Result in $REPLY.
+# Pure zsh, no fork — used only on the cc-miss "did you mean?" path. 1-based arrays;
+# prev[c]/cur[c] hold the DP value for column c-1 (0..lb). Classic two-row DP.
+_cc_levenshtein() {
+  local a="${1:l}" b="${2:l}"
+  local -i la=${#a} lb=${#b} i c j cost del ins sub mn
+  if (( la == 0 )); then REPLY=$lb; return; fi
+  if (( lb == 0 )); then REPLY=$la; return; fi
+  local -a prev cur
+  for (( c = 1; c <= lb + 1; c++ )); do prev[c]=$(( c - 1 )); done
+  for (( i = 1; i <= la; i++ )); do
+    cur[1]=$i
+    for (( c = 2; c <= lb + 1; c++ )); do
+      j=$(( c - 1 ))
+      [[ "${a[i]}" == "${b[j]}" ]] && cost=0 || cost=1
+      del=$(( prev[c] + 1 ))
+      ins=$(( cur[c-1] + 1 ))
+      sub=$(( prev[c-1] + cost ))
+      mn=$del
+      (( ins < mn )) && mn=$ins
+      (( sub < mn )) && mn=$sub
+      cur[c]=$mn
+    done
+    prev=( "${cur[@]}" )
+  done
+  REPLY=${prev[lb+1]}
 }
 
 # Resolve the base ref for a NEW worktree: the repo's true default branch.

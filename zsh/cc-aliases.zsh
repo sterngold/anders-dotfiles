@@ -18,8 +18,11 @@
 #   0. Explicit path — absolute (cc /abs/proj, cc ~/anywhere/proj) or any existing
 #      directory from cwd (cc ./x, cc ../sibling). Zero-config; works anywhere.
 #   1. Direct child of $PROJECTS_ROOT (back-compat for pre-Work-3.0 layout)
-#   2. Two-level search under category dirs (00_SYSTEM, 10_AI_OS, 20_PRODUCTS,
-#      30_DOMAINS, 40_EXPERIMENTS, 50_CLIENTS, 90_ARCHIVE) — exact case-insensitive match
+#   2. Two-level search under ACTIVE category dirs (00_SYSTEM, 10_AI_OS, 20_PRODUCTS,
+#      30_DOMAINS, 40_EXPERIMENTS, 50_CLIENTS) — exact case-insensitive match.
+#      90_ARCHIVE is deliberately NOT scanned: an archived copy must never shadow the
+#      active project of the same name (e.g. alf-podcast). Reach an archived project
+#      explicitly via its relative path, e.g. `cc 90_ARCHIVE/alf-podcast` (Rule 3).
 #   3. Explicit relative path (e.g. 20_PRODUCTS/Nudge) — works as a normal dir
 #   4. Exact case-insensitive name match under any configured search root. Default
 #      root = parent of $PROJECTS_ROOT (~/Code, covering the sibling repos). Extend
@@ -107,7 +110,10 @@ _cc_reset_visuals() {
 #                   cloud model (Anthropic / OpenAI / etc.) and must not see vault data.
 # Workspace categories that may hold projects as grandchildren of $PROJECTS_ROOT.
 # Order is irrelevant for resolution; case-insensitive exact match decides.
-_CC_CATEGORIES=(00_SYSTEM 10_AI_OS 20_PRODUCTS 30_DOMAINS 40_EXPERIMENTS 50_CLIENTS 90_ARCHIVE)
+# 90_ARCHIVE is intentionally excluded so a retired project never shadows the active
+# one of the same name. Archived projects are still reachable via explicit relative
+# path (Rule 3), e.g. `cc 90_ARCHIVE/alf-podcast`.
+_CC_CATEGORIES=(00_SYSTEM 10_AI_OS 20_PRODUCTS 30_DOMAINS 40_EXPERIMENTS 50_CLIENTS)
 
 # Resolve a project name → absolute directory.
 # Echoes the resolved path on stdout, or prints an error to stderr and returns 1.

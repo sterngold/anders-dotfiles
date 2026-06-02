@@ -1,0 +1,10 @@
+# anders-dotfiles — atuin config (only the non-default settings; everything else
+# uses atuin's built-in defaults). Symlinked to ~/.config/atuin/config.toml by install.sh.
+
+# Pressing Enter runs the selected history command immediately (Tab edits it first).
+enter_accept = true
+
+[sync]
+# Use sync v2 record format (forward-compatible). Note: sync itself stays OFF unless
+# you run `atuin login` — this only sets the record format, no data leaves the host.
+records = true

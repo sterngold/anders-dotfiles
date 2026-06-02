@@ -100,18 +100,23 @@ fi
 # left intact for hosts that still run cc-build.)
 if [[ -d "$HOME_DIR/.claude-build" ]]; then
   link "$REPO/claude-build/CLAUDE.md"  "$HOME_DIR/.claude-build/CLAUDE.md"
+  echo "  (legacy cc-build profile present)"
+else
+  echo "  SKIP ~/.claude-build/CLAUDE.md (profile retired on this host — single-profile)"
+fi
 
-  # Ralph allowlist — bootstrap-then-machine-managed. User edits to add projects.
-  # Hardblock paths (Vaults/Health/Finance/Coaching) are in the runner, NOT here.
-  RALPH_ALLOWLIST_DST="$HOME_DIR/.claude-build/ralph-allowlist.txt"
+# Ralph allowlist — installed into the ACTIVE profile (~/.claude-full); the ralph runner
+# resolves active-then-legacy (AND-1345: .claude-build was retired out from under it).
+# Bootstrap-then-user-managed. Hardblock paths (Vaults/Health/Finance/Coaching) are in the
+# runner, NOT here.
+if [[ -d "$HOME_DIR/.claude-full" ]]; then
+  RALPH_ALLOWLIST_DST="$HOME_DIR/.claude-full/ralph-allowlist.txt"
   if [[ ! -e "$RALPH_ALLOWLIST_DST" ]]; then
     cp "$REPO/claude-build/ralph-allowlist.txt" "$RALPH_ALLOWLIST_DST"
     echo "  BOOT $RALPH_ALLOWLIST_DST (bootstrap copy)"
   else
     echo "  KEEP $RALPH_ALLOWLIST_DST (existing — user-managed)"
   fi
-else
-  echo "  SKIP ~/.claude-build/* (profile retired on this host — single-profile)"
 fi
 
 # Ralph runner — symlinked to ~/.local/bin/ralph (must be on PATH).
@@ -178,6 +183,39 @@ if ! grep -Fq "$REPO/zsh/cc-aliases.zsh" "$HOME_DIR/.zprofile" 2>/dev/null; then
   echo "  ADD  source line in ~/.zprofile"
 else
   echo "  OK   ~/.zprofile already sources cc-aliases.zsh"
+fi
+
+# ── Terminal productivity stack (starship/atuin/eza/yazi/zoxide/bat + zsh plugins) ──
+# Reproducible across machines: Brewfile installs the tools, config/ holds the prompt +
+# history settings, zsh/terminal-stack.zsh inits them in interactive shells.
+
+# 1. Packages — idempotent + fast when already satisfied. --no-upgrade keeps existing
+#    versions; --no-lock avoids writing Brewfile.lock.json into the repo.
+if command -v brew >/dev/null 2>&1; then
+  if brew bundle --file="$REPO/Brewfile" --no-lock --no-upgrade >/dev/null 2>&1; then
+    echo "  OK   brew bundle (terminal stack)"
+  else
+    echo "  WARN brew bundle had issues — run manually: brew bundle --file=$REPO/Brewfile"
+  fi
+else
+  echo "  SKIP brew bundle (no Homebrew on this host)"
+fi
+
+# 2. Configs — symlink starship prompt + atuin settings (link() backs up any real file first)
+mkdir -p "$HOME_DIR/.config/atuin"
+link "$REPO/config/starship.toml"     "$HOME_DIR/.config/starship.toml"
+link "$REPO/config/atuin/config.toml" "$HOME_DIR/.config/atuin/config.toml"
+
+# 3. Source line — added to ~/.zshrc (NOT ~/.zprofile: starship/atuin/autosuggestions need
+#    an interactive shell). Appended last so starship init owns PROMPT/RPROMPT.
+TS_SOURCE_LINE="[[ -f $REPO/zsh/terminal-stack.zsh ]] && source $REPO/zsh/terminal-stack.zsh"
+if ! grep -Fq "$REPO/zsh/terminal-stack.zsh" "$HOME_DIR/.zshrc" 2>/dev/null; then
+  echo "" >> "$HOME_DIR/.zshrc"
+  echo "# anders-dotfiles: terminal productivity stack (starship/atuin/eza/yazi/zoxide…)" >> "$HOME_DIR/.zshrc"
+  echo "$TS_SOURCE_LINE" >> "$HOME_DIR/.zshrc"
+  echo "  ADD  source line in ~/.zshrc (terminal stack)"
+else
+  echo "  OK   ~/.zshrc already sources terminal-stack.zsh"
 fi
 
 # Fabrication-check hook (AND-786 Layer 1 — Structural Skeptic)

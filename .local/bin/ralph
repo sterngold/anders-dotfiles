@@ -14,7 +14,18 @@ set -euo pipefail
 
 readonly RALPH_VERSION="1.1"
 readonly REQUIRED_HOSTNAME="andersstar"
-readonly ALLOWLIST_FILE="${HOME}/.claude-build/ralph-allowlist.txt"
+# Allowlist lives in the active Claude profile. ~/.claude-build was retired on 2026-05-11
+# (single-profile consolidation into ~/.claude-full); honor an env override, then the active
+# profile, then the legacy path for back-compat — default to the active profile. (AND-1345)
+_ralph_resolve_allowlist() {
+    if [[ -n "${RALPH_ALLOWLIST_FILE:-}" ]]; then printf '%s\n' "${RALPH_ALLOWLIST_FILE}"; return; fi
+    local active="${HOME}/.claude-full/ralph-allowlist.txt"
+    local legacy="${HOME}/.claude-build/ralph-allowlist.txt"
+    if [[ -f "${active}" ]]; then printf '%s\n' "${active}"
+    elif [[ -f "${legacy}" ]]; then printf '%s\n' "${legacy}"
+    else printf '%s\n' "${active}"; fi
+}
+readonly ALLOWLIST_FILE="$(_ralph_resolve_allowlist)"
 readonly RUNS_ROOT="${HOME}/RalphRuns"
 readonly PROJECTS_ROOT="${HOME}/Code/my-projects"
 readonly PRUNE_THRESHOLD=10
@@ -168,7 +179,10 @@ check_prune_trigger() {
     local notes_file="$1"
     [[ ! -f "${notes_file}" ]] && return 0
     local count
-    count=$(grep -c '^## ' "${notes_file}" || true)
+    # Count RUN-ENTRY headers only (dated: `## <YYYY-...> · iter-N · run-…`), not the
+    # `## What worked` / `## What failed` subsection headers each entry contains — else ~5
+    # subsections per run trip the threshold after only 2 runs. (AND-1345)
+    count=$(grep -cE '^## [0-9]{4}-[0-9]' "${notes_file}" || true)
     if [[ "${count}" -ge "${PRUNE_THRESHOLD}" ]]; then
         err "PRUNE_DUE: notes.md has ${count} entries (threshold ${PRUNE_THRESHOLD})."
         err "  Run: ralph notes <project> --prune"

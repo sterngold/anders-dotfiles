@@ -15,6 +15,8 @@
 #   15  canonical AGENTS.md missing while workspace present, OR CLAUDE.md is not a
 #       thin pointer (missing column-0 `@AGENTS.md` import) — thin-pointer model
 #   16  (reserved — was render-claude.sh error; unused under the thin-pointer model)
+#   17  cc(1) project-resolver invariant breach — an active project does not resolve
+#       uniquely via `cc <name>` (name collision or unreachable; see zsh/cc-doctor.zsh)
 #
 # Usage: bash doctor.sh           # human-readable bullets + summary (default)
 #        bash doctor.sh --json    # machine-readable: {"exit_code":N,"findings":[…]}
@@ -22,7 +24,7 @@
 #
 # --json contract: a single JSON object on stdout, no human bullets. Each finding
 # is {id, code, status, summary} where id = section ("symlinks"/"imports"/…),
-# status = "pass"|"fail", code = the 10–16 class (0 on pass). exit_code mirrors
+# status = "pass"|"fail", code = the 10–17 class (0 on pass). exit_code mirrors
 # the human-mode exit. Dependency-free (no jq/python) so it runs on any host.
 
 set -uo pipefail   # NOT -e: we want to run every check and aggregate.
@@ -182,6 +184,31 @@ if [[ -d "$PROJECTS_ROOT" ]]; then
   fi
 else
   note_ok "no workspace on this host — context check not required"
+fi
+
+# --- 17: cc(1) project-resolver invariants ----------------------------------
+# Every active project must resolve uniquely via `cc <name>` (no collision, none
+# unreachable). Born from a latent bug found only by accident — an archived project
+# shadowed an active one of the same name, so `cc <name>` aborted "ambiguous". The
+# check logic lives in zsh/cc-doctor.zsh (single source; also runnable standalone).
+# It needs the live workspace + zsh; skips cleanly without either.
+section cc-resolve
+if [[ ! -d "$PROJECTS_ROOT" ]]; then
+  note_ok "no workspace on this host — cc resolver check not required"
+elif ! command -v zsh >/dev/null 2>&1; then
+  note_ok "zsh unavailable — cc resolver check skipped"
+elif [[ ! -f "$REPO/zsh/cc-doctor.zsh" ]]; then
+  note_fail 17 "cc-doctor.zsh missing at $REPO/zsh/cc-doctor.zsh"
+else
+  cc_out="$(PROJECTS_ROOT="$PROJECTS_ROOT" zsh "$REPO/zsh/cc-doctor.zsh" 2>&1)"; cc_rc=$?
+  case $cc_rc in
+    0) note_ok "cc resolver: every active project resolves uniquely"
+       (( JSON_MODE )) || printf '%s\n' "$cc_out" | sed 's/^/      /' ;;
+    1) note_fail 17 "cc resolver INV-1 breach — an active project does not resolve cleanly"
+       (( JSON_MODE )) || printf '%s\n' "$cc_out" | sed 's/^/      /' ;;
+    *) note_fail 17 "cc resolver check harness error (rc=$cc_rc)"
+       (( JSON_MODE )) || printf '%s\n' "$cc_out" | sed 's/^/      /' ;;
+  esac
 fi
 
 if (( JSON_MODE )); then

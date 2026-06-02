@@ -8,6 +8,20 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0](https://github.com/sterngold/anders-dotfiles/compare/v1.8.1...v1.9.0) (2026-06-02)
+
+
+### Features
+
+* **cc:** add `ccdoctor` alias for the resolver invariant check ([9ba8bc6](https://github.com/sterngold/anders-dotfiles/commit/9ba8bc6da03983ad8c98d924a1e042f8c2ac771b))
+* **cc:** suggest closest project on a miss ("did you mean: KnowledgeBase?") ([aaf2b10](https://github.com/sterngold/anders-dotfiles/commit/aaf2b10d7715ddd08d9015621c11a9828e8062ca))
+* **doctor:** cc-resolvability invariant check (catches collisions/unreachable) ([8ca1e74](https://github.com/sterngold/anders-dotfiles/commit/8ca1e74cc959bf6b987e9be3cf187cb0dea066bf))
+
+
+### Bug Fixes
+
+* **cc:** address PR review — crash≠miss classification + category-list drift ([cba8057](https://github.com/sterngold/anders-dotfiles/commit/cba80571586b16a02660aac9b5999dad0c285311))
+
 ## [1.8.1](https://github.com/sterngold/anders-dotfiles/compare/v1.8.0...v1.8.1) (2026-06-02)
 
 

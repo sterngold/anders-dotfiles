@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1](https://github.com/sterngold/anders-dotfiles/compare/v1.8.0...v1.8.1) (2026-06-02)
+
+
+### Bug Fixes
+
+* **cc:** drop 90_ARCHIVE from category scan so archives don't shadow active projects ([d4f867a](https://github.com/sterngold/anders-dotfiles/commit/d4f867a219a85626c1671e2562a69f48bced1ae0))
+
 ## [1.8.0](https://github.com/sterngold/anders-dotfiles/compare/v1.7.0...v1.8.0) (2026-06-02)
 
 

@@ -208,6 +208,43 @@ _cc_worktree_base() {
   printf '%s\n' "$ref"
 }
 
+# Fetch one git dir and fast-forward it to its remote default branch when SAFE.
+# Safe = clean tree AND no local commits ahead → ff-only can never lose work. If the
+# dir is behind but dirty/ahead, warn (with the base ref) instead of mutating. Pure
+# safety net against the stale-HEAD trap (a worktree silently sitting behind origin).
+_cc_ff_or_warn() {
+  local dir="$1" label="$2" base behind ahead dirty
+  git -C "$dir" fetch -q origin 2>/dev/null || return 0
+  base=$(_cc_worktree_base "$dir")
+  behind=$(git -C "$dir" rev-list --count "HEAD..$base" 2>/dev/null) || return 0
+  [[ "${behind:-0}" -gt 0 ]] || return 0
+  ahead=$(git -C "$dir" rev-list --count "$base..HEAD" 2>/dev/null || echo 0)
+  dirty=$(git -C "$dir" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "$ahead" -eq 0 && "$dirty" -eq 0 ]]; then
+    git -C "$dir" merge --ff-only "$base" >/dev/null 2>&1 \
+      && printf 'cc: refreshed %s → %s (was %s behind)\n' "$label" "$base" "$behind" >&2
+  else
+    printf 'cc: ⚠ %s is %s behind %s (ahead %s, dirty %s files) — NOT refreshed. Branch task work off %s.\n' \
+      "$label" "$behind" "$base" "$ahead" "$dirty" "$base" >&2
+  fi
+}
+
+# On worktree REUSE, refresh the worktree (and the project's submodule, where the
+# AND-1346 stale-HEAD trap actually bit) so a session never starts on a stale tree.
+_cc_refresh_worktree() {
+  local wt_root="$1" repo_root="$2" project_subpath="$3" wt_branch="$4"
+  _cc_ff_or_warn "$wt_root" "$wt_branch"
+  if [[ -n "$project_subpath" && -f "$repo_root/.gitmodules" ]]; then
+    local sub
+    while IFS= read -r sub; do
+      if [[ "$project_subpath" == "$sub" || "$project_subpath" == "$sub/"* ]]; then
+        [[ -e "$wt_root/$sub/.git" ]] && _cc_ff_or_warn "$wt_root/$sub" "submodule $sub"
+        break
+      fi
+    done < <(git -C "$repo_root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+  fi
+}
+
 # Ensure a worktree exists for $project_name off $repo_root.
 # Echoes the final target path (worktree root, or worktree+subpath) on stdout.
 # Args: repo_root, project_subpath (relative to repo_root, may be ""), project_name
@@ -230,6 +267,9 @@ _cc_ensure_worktree() {
       base=$(_cc_worktree_base "$repo_root")
       git -C "$repo_root" worktree add -b "$wt_branch" "$wt_root" "$base" >&2 || return 1
     fi
+  else
+    # Reuse: don't hand back a stale worktree (the AND-1346 trap). Non-fatal.
+    _cc_refresh_worktree "$wt_root" "$repo_root" "$project_subpath" "$wt_branch" || true
   fi
 
   # If project lives inside a submodule that isn't populated in the worktree,
@@ -256,17 +296,21 @@ _cc_launch() {
   local mode="$1" config_dir="$2" r="$3" g="$4" b="$5" model_class="$6"
   shift 6
   local root="${PROJECTS_ROOT:?PROJECTS_ROOT not set}"
-  local target badge no_worktree=0
+  local target badge no_worktree=0 force_new=0
 
-  # Strip --no-worktree from args; everything else passes through to claude.
+  # Strip cc-only flags from args; everything else passes through to claude.
+  #   --no-worktree  skip worktree creation (run in the project dir itself)
+  #   --new          force a FRESH, uniquely-named worktree off the remote default —
+  #                  for a session running parallel to another on the same project
+  #                  (plain cc reuses the one worktree → collision).
   local -a _args
   local a
   for a in "$@"; do
-    if [[ "$a" == "--no-worktree" ]]; then
-      no_worktree=1
-    else
-      _args+=("$a")
-    fi
+    case "$a" in
+      --no-worktree) no_worktree=1 ;;
+      --new)         force_new=1 ;;
+      *)             _args+=("$a") ;;
+    esac
   done
   set -- "${_args[@]}"
 
@@ -297,7 +341,20 @@ _cc_launch() {
         fi
       fi
       if [[ -n "$repo_root" ]]; then
-        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$badge") || return 1
+        local wt_name="$badge"
+        if (( force_new )); then
+          # Pick the next free <project>-N (no dir AND no wt/ branch) so a parallel
+          # session gets its own isolated worktree off the current remote default.
+          local n=2
+          while [[ -d "$repo_root/.claude/worktrees/${badge}-${n}" ]] \
+                || git -C "$repo_root" show-ref --verify --quiet "refs/heads/wt/${badge}-${n}"; do
+            (( n++ ))
+          done
+          wt_name="${badge}-${n}"
+          printf 'cc: --new → fresh worktree %s off the remote default\n' "$wt_name" >&2
+        fi
+        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name") || return 1
+        badge="$wt_name"
       fi
     fi
   else

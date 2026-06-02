@@ -8,6 +8,18 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0](https://github.com/sterngold/anders-dotfiles/compare/v1.6.1...v1.7.0) (2026-06-02)
+
+
+### Features
+
+* **zsh:** portable terminal stack — Brewfile + starship/atuin configs + terminal-stack.zsh ([1686fd6](https://github.com/sterngold/anders-dotfiles/commit/1686fd642a533b3bc6d6d9149e06a36d17fd5dcb))
+
+
+### Bug Fixes
+
+* **ralph/AND-1345:** repair bit-rot — active-profile allowlist + run-entry prune count ([#21](https://github.com/sterngold/anders-dotfiles/issues/21)) ([eb409c6](https://github.com/sterngold/anders-dotfiles/commit/eb409c6b094712e3b50b4e53220b27d66742ee06))
+
 ## [1.6.1](https://github.com/sterngold/anders-dotfiles/compare/v1.6.0...v1.6.1) (2026-06-01)
 
 

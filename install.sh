@@ -190,7 +190,7 @@ fi
 # history settings, zsh/terminal-stack.zsh inits them in interactive shells.
 
 # 1. Packages — idempotent + fast when already satisfied. --no-upgrade keeps existing
-#    versions; --no-lock avoids writing Brewfile.lock.json into the repo.
+#    versions. (brew bundle does not write a lockfile by default in current Homebrew.)
 if command -v brew >/dev/null 2>&1; then
   if brew bundle --file="$REPO/Brewfile" --no-upgrade >/dev/null 2>&1; then
     echo "  OK   brew bundle (terminal stack)"

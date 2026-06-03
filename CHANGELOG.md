@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0](https://github.com/sterngold/anders-dotfiles/compare/v1.9.0...v1.10.0) (2026-06-03)
+
+
+### Features
+
+* **zsh:** GitHub MCP token via ~/.zshenv + launchd-safe claude-mcp wrapper ([e6055bd](https://github.com/sterngold/anders-dotfiles/commit/e6055bd0c3558f8643cbb16b20c3e5a6dbb8fde9))
+
 ## [1.9.0](https://github.com/sterngold/anders-dotfiles/compare/v1.8.1...v1.9.0) (2026-06-02)
 
 

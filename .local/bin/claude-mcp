@@ -1,0 +1,17 @@
+#!/bin/zsh
+# claude-mcp — launch Claude Code with GITHUB_PERSONAL_ACCESS_TOKEN guaranteed set,
+# in ANY context including launchd (which sources no shell files and may have no
+# keychain access). Resolution order:
+#   1. inherited env (interactive shells via ~/.zshenv)
+#   2. gh keyring (interactive / GUI-session launchd where keychain is reachable)
+#   3. GITHUB_PAT_FLEET — static PAT in the 600-perm secrets file, keychain-independent
+#      NOTE (2026-06-03): GITHUB_PAT_FLEET is currently EXPIRED (401 to api.github.com).
+#      The keychain-independent fallback only authenticates once it is rotated to a
+#      valid PAT with `repo` + `read:org` scope. Until then only paths 1–2 work.
+# This script holds no secret; it only reads them at runtime.
+# (added 2026-06-03 — fixes github MCP "Bearer " → HTTP 400 in non-shell launches)
+[ -f "$HOME/.config/zsh/secrets.zsh" ] && source "$HOME/.config/zsh/secrets.zsh"
+: "${GITHUB_PERSONAL_ACCESS_TOKEN:=$(gh auth token 2>/dev/null)}"
+: "${GITHUB_PERSONAL_ACCESS_TOKEN:=$GITHUB_PAT_FLEET}"
+export GITHUB_PERSONAL_ACCESS_TOKEN
+exec claude "$@"

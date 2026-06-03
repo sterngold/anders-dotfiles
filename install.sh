@@ -129,6 +129,12 @@ link "$REPO/.local/bin/ralph"        "$HOME_DIR/.local/bin/ralph"
 # Linear: AND-525 (terminal stats), AND-524 (AndersDeck panel uses the dashboard).
 link "$REPO/.local/bin/claude-usage" "$HOME_DIR/.local/bin/claude-usage"
 
+# claude-mcp — launches Claude Code with GITHUB_PERSONAL_ACCESS_TOKEN guaranteed
+# set in ANY context (incl. launchd, which sources no shell files). Point launchd
+# plists that run CC with plugin:github:github at this instead of bare `claude`.
+# See memory: github-mcp-setup.
+link "$REPO/.local/bin/claude-mcp"   "$HOME_DIR/.local/bin/claude-mcp"
+
 # claude-usage upstream patches — apply each .patch under .local/lib/claude-usage-patches/
 # to ~/.local/lib/claude-usage/ if the patch hasn't already been applied.
 # Idempotent: `git apply --check` exits 0 if the patch is applicable but not yet
@@ -183,6 +189,20 @@ if ! grep -Fq "$REPO/zsh/cc-aliases.zsh" "$HOME_DIR/.zprofile" 2>/dev/null; then
   echo "  ADD  source line in ~/.zprofile"
 else
   echo "  OK   ~/.zprofile already sources cc-aliases.zsh"
+fi
+
+# GitHub MCP token — source line added to ~/.zshenv (NOT ~/.zprofile/.zshrc:
+# .zshenv is the only rc sourced by non-interactive `zsh -c` shells too, so the
+# token reaches every zsh context). Exports GITHUB_PERSONAL_ACCESS_TOKEN for
+# plugin:github:github. launchd → ~/.local/bin/claude-mcp. See memory github-mcp-setup.
+ZSHENV_SOURCE_LINE="[[ -f $REPO/zsh/github-token.zsh ]] && source $REPO/zsh/github-token.zsh"
+if ! grep -Fq "$REPO/zsh/github-token.zsh" "$HOME_DIR/.zshenv" 2>/dev/null; then
+  echo "" >> "$HOME_DIR/.zshenv"
+  echo "# anders-dotfiles: GitHub MCP token (all zsh contexts)" >> "$HOME_DIR/.zshenv"
+  echo "$ZSHENV_SOURCE_LINE" >> "$HOME_DIR/.zshenv"
+  echo "  ADD  source line in ~/.zshenv (github-token)"
+else
+  echo "  OK   ~/.zshenv already sources github-token.zsh"
 fi
 
 # ── Terminal productivity stack (starship/atuin/eza/yazi/zoxide/bat + zsh plugins) ──

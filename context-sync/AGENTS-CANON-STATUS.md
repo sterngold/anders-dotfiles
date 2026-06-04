@@ -40,18 +40,18 @@ A/B/C described a repo's *starting* state and over-counted (Momentum/Nudge were 
 | shared-skills | ~/.claude-full | sibling-direct | ✅ done |
 | Nudge | submodule (client) | client-PR | ✅ done (PR #92, `c666627`; Option-C audience split — operator ctx → `AGENTS.body.md`; prettier-ignored) |
 | **werkanders-os** | ~/Code (governed site) | governed-site | ⚠️ **anomaly — canonical but NOT on pipeline** (hand-written AGENTS.md via PR #13; no header; `--check` exits 2; §3–13 will drift) |
-| the-symbiotic-mind | ~/Code (governed site) | governed-site | 🔵 remaining (no AGENTS.md) |
-| andersreality-website | ~/Code (governed site) | governed-site | 🔵 remaining (no AGENTS.md) |
-| golden-soviet-gallery | ~/Code (governed site) | governed-site | 🔵 remaining 🔴 **prettier landmine** |
-| vlad-sterngold-os | ~/Code (governed site) | governed-site | 🔵 remaining (no AGENTS.md) |
-| seo-ops | ~/Code (ops repo) | governed-site | 🔵 remaining (no AGENTS.md) |
+| the-symbiotic-mind | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #25; from-scratch) |
+| andersreality-website | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #7; from-scratch) |
+| golden-soviet-gallery | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #3; from-scratch; `AGENTS.*` prettier-ignored before assembly) |
+| vlad-sterngold-os | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #12; migration — former CLAUDE.md → `AGENTS.body.md` §14) |
+| seo-ops | ~/Code (ops repo) | governed-site | 🟡 PR open (AND-1296, PR #9 — converted + `--check` 0, mergeable/clean, awaiting owner merge; migration → `AGENTS.body.md` §14) |
 | **my-projects (root)** | workspace root | root | 🟦 **intentional exception** — hand-written workspace canon, NOT assembled by design. Do not "fix" it. |
 
-**Tally:** 10 done · 1 anomaly (werkanders) · 4 remaining · 1 intentional exception.
+**Tally:** 14 done · 1 anomaly (werkanders) · 1 PR-open (seo-ops #9 — merge to finish AND-1296) · 1 intentional exception.
 
 ## 🔴 Prettier landmine (read before any TS/React repo)
 
-A repo whose pre-commit hook runs `prettier --write` on `*.md` (lint-staged) reformats the **assembled** `AGENTS.md`, diverging its raw inlined canon from `assemble-agents.sh` output → `--check` fails every commit. **Fix:** add `AGENTS.md` + `AGENTS.header.md` + `AGENTS.body.md` to the repo's `.prettierignore` **before** converting, then assemble. First hit: Momentum (PR #39 recovery). Also hit + resolved: **Nudge** (PR #92 — `.prettierignore` added before assembly; `node lint` CI green). Confirmed pending: **golden-soviet-gallery**. Memory: `feedback_prettier_ignore_assembled_agents`.
+A repo whose pre-commit hook runs `prettier --write` on `*.md` (lint-staged) reformats the **assembled** `AGENTS.md`, diverging its raw inlined canon from `assemble-agents.sh` output → `--check` fails every commit. **Fix:** add `AGENTS.md` + `AGENTS.header.md` + `AGENTS.body.md` to the repo's `.prettierignore` **before** converting, then assemble. First hit: Momentum (PR #39 recovery). Also hit + resolved: **Nudge** (PR #92 — `.prettierignore` added before assembly; `node lint` CI green). Also hit + resolved: **golden-soviet-gallery** (AND-1296, PR #3 — `AGENTS.md`/`AGENTS.header.md`/`AGENTS.body.md` added to `.prettierignore` before assembly; eslint scopes `**/*.{ts,tsx}` only + no CI, so the assembled file is safe). Memory: `feedback_prettier_ignore_assembled_agents`.
 
 ## Go-forward queue (each its own gated session — NOT bulk)
 
@@ -59,9 +59,9 @@ A repo whose pre-commit hook runs `prettier --write` on `*.md` (lint-staged) ref
 |---|---|---|---|---|
 | ~~1~~ | ~~**Nudge**~~ | client-PR | AND-1299 ✅ **Done** | Shipped PR #92 (`c666627`). Operator ctx → `AGENTS.body.md` (Option C). Follow-ups split: AND-1349 (.env loader research), AND-1350 (scrub hook → `.pre-commit-config.yaml`). |
 | 1 | **werkanders-os** | governed-site | AND-1298 (reopened) | **migration, not from-scratch** — derive header+body from its current AGENTS.md, re-assemble so §3–13 = central canon, `--check` 0 |
-| 3 | the-symbiotic-mind · andersreality-website | governed-site | AND-1296 | lighter (no/static context files) |
-| 4 | **golden-soviet-gallery** | governed-site | AND-1296 | ⚠ `.prettierignore` AGENTS first |
-| 5 | vlad-sterngold-os · seo-ops | governed-site | AND-1296 | seo-ops = the ops repo itself |
+| ~~3~~ | ~~the-symbiotic-mind · andersreality-website~~ | governed-site | AND-1296 ✅ | **Done** — PR #25 / #7 merged |
+| ~~4~~ | ~~**golden-soviet-gallery**~~ | governed-site | AND-1296 ✅ | **Done** — PR #3 merged (`.prettierignore`'d before assembly) |
+| 5 | ~~vlad-sterngold-os~~ · **seo-ops** | governed-site | AND-1296 | vlad-sterngold-os ✅ PR #12 merged; **seo-ops PR #9 open — merge to finish AND-1296** |
 | 6 | AND-1300 vault-remote guard · AND-1301 Obsidian | dotfiles / vault | AND-1300 / AND-1301 | 1301 blocked on Recovery-vault content-class + babystar M5↔Air sync decisions |
 
 **Governed-site rule:** for any `~/Code` live site, read `~/Code/seo-ops/control.md` first; branch+PR; never autonomously touch DNS / GSC / GA4 / deploy.

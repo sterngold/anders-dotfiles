@@ -44,10 +44,10 @@ A/B/C described a repo's *starting* state and over-counted (Momentum/Nudge were 
 | andersreality-website | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #7; from-scratch) |
 | golden-soviet-gallery | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #3; from-scratch; `AGENTS.*` prettier-ignored before assembly) |
 | vlad-sterngold-os | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #12; migration — former CLAUDE.md → `AGENTS.body.md` §14) |
-| seo-ops | ~/Code (ops repo) | governed-site | 🟡 PR open (AND-1296, PR #9 — converted + `--check` 0, mergeable/clean, awaiting owner merge; migration → `AGENTS.body.md` §14) |
+| seo-ops | ~/Code (ops repo) | governed-site | ✅ done (AND-1296, PR #9; migration — former CLAUDE.md → `AGENTS.body.md` §14, + `@HANDOVER.md`) |
 | **my-projects (root)** | workspace root | root | 🟦 **intentional exception** — hand-written workspace canon, NOT assembled by design. Do not "fix" it. |
 
-**Tally:** 14 done · 1 anomaly (werkanders) · 1 PR-open (seo-ops #9 — merge to finish AND-1296) · 1 intentional exception.
+**Tally:** 15 done · 1 anomaly (werkanders, AND-1298) · 0 remaining · 1 intentional exception. **AND-1296 complete** — werkanders-os pipeline migration (AND-1298) is the only standardization item left.
 
 ## 🔴 Prettier landmine (read before any TS/React repo)
 
@@ -61,7 +61,7 @@ A repo whose pre-commit hook runs `prettier --write` on `*.md` (lint-staged) ref
 | 1 | **werkanders-os** | governed-site | AND-1298 (reopened) | **migration, not from-scratch** — derive header+body from its current AGENTS.md, re-assemble so §3–13 = central canon, `--check` 0 |
 | ~~3~~ | ~~the-symbiotic-mind · andersreality-website~~ | governed-site | AND-1296 ✅ | **Done** — PR #25 / #7 merged |
 | ~~4~~ | ~~**golden-soviet-gallery**~~ | governed-site | AND-1296 ✅ | **Done** — PR #3 merged (`.prettierignore`'d before assembly) |
-| 5 | ~~vlad-sterngold-os~~ · **seo-ops** | governed-site | AND-1296 | vlad-sterngold-os ✅ PR #12 merged; **seo-ops PR #9 open — merge to finish AND-1296** |
+| ~~5~~ | ~~vlad-sterngold-os · seo-ops~~ | governed-site | AND-1296 ✅ | **Done** — PR #12 / #9 merged. AND-1296 complete. |
 | 6 | AND-1300 vault-remote guard · AND-1301 Obsidian | dotfiles / vault | AND-1300 / AND-1301 | 1301 blocked on Recovery-vault content-class + babystar M5↔Air sync decisions |
 
 **Governed-site rule:** for any `~/Code` live site, read `~/Code/seo-ops/control.md` first; branch+PR; never autonomously touch DNS / GSC / GA4 / deploy.

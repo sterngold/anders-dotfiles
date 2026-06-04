@@ -531,3 +531,10 @@ _cc_projects() {
 
 # git-clean — check all repos and submodules are pristine
 alias git-clean='cd ~/Code/my-projects && git status --short && git log origin/main..HEAD --oneline && git branch -a | grep -v "main\|HEAD" && for sub in 10_AI_OS/Anderson 10_AI_OS/AndersMem 20_PRODUCTS/FoodLog 20_PRODUCTS/Momentum 20_PRODUCTS/Nudge 00_SYSTEM/anders-config; do echo "=== $sub ===" && git -C $sub status --short && git -C $sub log origin/main..HEAD --oneline 2>/dev/null && git -C $sub branch -a | grep -v "main\|HEAD"; done'
+
+# atlas — regenerate + open the Process Atlas (workspace process map: PM + engineer views)
+# Passes through extra args, e.g. `atlas --json`. PROJECTS_ROOT must point at the primary checkout.
+atlas() {
+  local root="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
+  PROJECTS_ROOT="$root" python3 "$root/00_SYSTEM/anders-config/tools/process-atlas.py" --open "$@"
+}

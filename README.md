@@ -7,8 +7,7 @@ Claude Code configuration across machines. Four modes, three machines, one sourc
 | Path | Role |
 |---|---|
 | `claude/settings.json` | Default `claude` — daily driver base |
-| `claude/CLAUDE.md` | Global context loader (Constitution + RTK) — linked to both `.claude` and `.claude-full` |
-| `claude/RTK.md` | RTK token-saver reference — linked to both `.claude` and `.claude-full` |
+| `claude/CLAUDE.md` | Global context loader (Constitution) — linked to `.claude-full` |
 | `claude/statusline.sh` | Shared status line shell script |
 | `claude/keybindings.json` | Keybindings |
 | `claude-full/settings.json` | `cc` alias → `~/.claude-full/` — full mirror |

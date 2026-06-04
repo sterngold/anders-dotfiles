@@ -48,13 +48,11 @@ ROUTER="$REPO/claude/CLAUDE.md"
 COMMITTED_CONTEXT=(
   "$REPO/context-sync/mcp.json.template"
   "$REPO/claude/CLAUDE.md"
-  "$REPO/claude/RTK.md"
 )
 
 # Managed home symlinks install.sh creates (skip ones not present on this host).
 MANAGED_LINKS=(
   "$HOME_DIR/.claude-full/CLAUDE.md"
-  "$HOME_DIR/.claude-full/RTK.md"
   "$HOME_DIR/.claude-full/statusline.sh"
   "$HOME_DIR/.claude-full/keybindings.json"
   "$HOME_DIR/.claude-full/skills"

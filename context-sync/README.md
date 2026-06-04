@@ -25,7 +25,7 @@ make -C ~/Code/my-projects/00_SYSTEM/anders-config doctor
 
 | Layer | Tracked? | Notes |
 |---|---|---|
-| `claude/CLAUDE.md` (home loader), `claude/RTK.md` | committed | the durable, shared context — edit here |
+| `claude/CLAUDE.md` (home loader) | committed | the durable, shared context — edit here |
 | `context-sync/mcp.json.template` | committed | `${HOME}` / `${PROJECTS_ROOT}` tokens only — never absolute paths |
 | `$PROJECTS_ROOT/.mcp.json` | **gitignored** | rendered per-host by `render-mcp.sh`; absolute paths at runtime |
 | `CLAUDE.local.md` | **gitignored** | machine-specific operating notes |

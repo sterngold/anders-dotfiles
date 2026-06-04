@@ -75,9 +75,8 @@ manage_settings() {
 }
 
 # ~/.claude-full/ static files — single-profile CC gets the global context loader,
-# RTK proxy reference, statusline, and keybindings. (~/.claude retired 2026-05-11.)
+# statusline, and keybindings. (~/.claude retired 2026-05-11; rtk retired 2026-06-04.)
 link "$REPO/claude/CLAUDE.md"        "$HOME_DIR/.claude-full/CLAUDE.md"
-link "$REPO/claude/RTK.md"           "$HOME_DIR/.claude-full/RTK.md"
 link "$REPO/claude/statusline.sh"    "$HOME_DIR/.claude-full/statusline.sh"
 link "$REPO/claude/keybindings.json" "$HOME_DIR/.claude-full/keybindings.json"
 

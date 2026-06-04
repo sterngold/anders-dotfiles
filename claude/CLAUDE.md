@@ -15,8 +15,6 @@ Use it as a lens, not a script. Challenge me against it.
 
 Before editing any file, read it first. Before modifying a function, grep for all callers. Research before you edit.
 
-@RTK.md
-
 ## Vault-as-context imports (opt-in)
 
 This home loader can pull designated Obsidian vault notes into every agent's

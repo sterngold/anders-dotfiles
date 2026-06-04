@@ -39,7 +39,7 @@ A/B/C described a repo's *starting* state and over-counted (Momentum/Nudge were 
 | AIShared (sterngold-ai-shared) | ~/ | sibling-direct | ✅ done |
 | shared-skills | ~/.claude-full | sibling-direct | ✅ done |
 | Nudge | submodule (client) | client-PR | ✅ done (PR #92, `c666627`; Option-C audience split — operator ctx → `AGENTS.body.md`; prettier-ignored) |
-| **werkanders-os** | ~/Code (governed site) | governed-site | ⚠️ **anomaly — canonical but NOT on pipeline** (hand-written AGENTS.md via PR #13; no header; `--check` exits 2; §3–13 will drift) |
+| werkanders-os | ~/Code (governed site) | governed-site | ✅ done (AND-1298, PR #17; on the pipeline — header + body + assembled AGENTS.md, `--check` 0; `.prettierignore` guards the assembled file from the `mirrors-prettier` hook) |
 | the-symbiotic-mind | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #25; from-scratch) |
 | andersreality-website | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #7; from-scratch) |
 | golden-soviet-gallery | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #3; from-scratch; `AGENTS.*` prettier-ignored before assembly) |
@@ -47,7 +47,7 @@ A/B/C described a repo's *starting* state and over-counted (Momentum/Nudge were 
 | seo-ops | ~/Code (ops repo) | governed-site | ✅ done (AND-1296, PR #9; migration — former CLAUDE.md → `AGENTS.body.md` §14, + `@HANDOVER.md`) |
 | **my-projects (root)** | workspace root | root | 🟦 **intentional exception** — hand-written workspace canon, NOT assembled by design. Do not "fix" it. |
 
-**Tally:** 15 done · 1 anomaly (werkanders, AND-1298) · 0 remaining · 1 intentional exception. **AND-1296 complete** — werkanders-os pipeline migration (AND-1298) is the only standardization item left.
+**Tally:** 16 done · 0 anomaly · 0 remaining · 1 intentional exception (my-projects root). **STANDARDIZATION COMPLETE (2026-06-04)** — every repo is on the assemble pipeline (`--check` 0) except the intentional hand-written my-projects-root canon. AND-1296 + AND-1298 both Done.
 
 ## 🔴 Prettier landmine (read before any TS/React repo)
 
@@ -58,7 +58,7 @@ A repo whose pre-commit hook runs `prettier --write` on `*.md` (lint-staged) ref
 | # | Work | Gate | Linear | Notes |
 |---|---|---|---|---|
 | ~~1~~ | ~~**Nudge**~~ | client-PR | AND-1299 ✅ **Done** | Shipped PR #92 (`c666627`). Operator ctx → `AGENTS.body.md` (Option C). Follow-ups split: AND-1349 (.env loader research), AND-1350 (scrub hook → `.pre-commit-config.yaml`). |
-| 1 | **werkanders-os** | governed-site | AND-1298 (reopened) | **migration, not from-scratch** — derive header+body from its current AGENTS.md, re-assemble so §3–13 = central canon, `--check` 0 |
+| ~~1~~ | ~~**werkanders-os**~~ | governed-site | AND-1298 ✅ | **Done** — PR #17 merged; on pipeline + `.prettierignore` guard. Queue empty. |
 | ~~3~~ | ~~the-symbiotic-mind · andersreality-website~~ | governed-site | AND-1296 ✅ | **Done** — PR #25 / #7 merged |
 | ~~4~~ | ~~**golden-soviet-gallery**~~ | governed-site | AND-1296 ✅ | **Done** — PR #3 merged (`.prettierignore`'d before assembly) |
 | ~~5~~ | ~~vlad-sterngold-os · seo-ops~~ | governed-site | AND-1296 ✅ | **Done** — PR #12 / #9 merged. AND-1296 complete. |

@@ -8,6 +8,18 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0](https://github.com/sterngold/anders-dotfiles/compare/v1.10.0...v1.11.0) (2026-06-05)
+
+
+### Features
+
+* add atlas() helper to regenerate + open the Process Atlas ([188393c](https://github.com/sterngold/anders-dotfiles/commit/188393c09982132c4339b23c45f00e11bda91c86))
+
+
+### Bug Fixes
+
+* **ralph:** worktree-aware allowlist — permit allowlisted projects in .claude/worktrees ([ca5bfef](https://github.com/sterngold/anders-dotfiles/commit/ca5bfef1c3139b0a947fe0e388a000356a444b1a))
+
 ## [1.10.0](https://github.com/sterngold/anders-dotfiles/compare/v1.9.0...v1.10.0) (2026-06-03)
 
 

@@ -122,6 +122,30 @@ canonicalize() {
     realpath "${raw}"
 }
 
+# Map a Claude/Codex worktree path to its canonical PROJECT-equivalent, so the
+# allowlist treats a worktree of project P as project P (it IS P — Claude's `cc`
+# auto-creates an isolated worktree, the correct place for an autonomous build).
+# A path "<root>/.claude/worktrees/<wtname>/<subpath>" -> "<root>/<subpath>".
+# Returns the input unchanged for non-worktree paths. Used for the ALLOWLIST
+# check ONLY — the hardblock always runs against the real (worktree) path, and
+# the input is already realpath-resolved (no `..` to escape PROJECTS_ROOT).
+project_equiv() {
+    local canonical="$1" wt_root rest subpath
+    for wt_root in "${PROJECTS_ROOT}/.claude/worktrees" "${PROJECTS_ROOT}/.codex/worktrees"; do
+        if [[ "${canonical}" == "${wt_root}/"* ]]; then
+            rest="${canonical#"${wt_root}/"}"   # <wtname>/<subpath>
+            subpath="${rest#*/}"                # <subpath> (or <wtname> if no '/')
+            if [[ "${subpath}" != "${rest}" ]]; then
+                printf '%s\n' "${PROJECTS_ROOT}/${subpath}"
+            else
+                printf '%s\n' "${canonical}"    # worktree root itself — not a subproject
+            fi
+            return
+        fi
+    done
+    printf '%s\n' "${canonical}"
+}
+
 check_hardblock() {
     local canonical="$1"
     # Append trailing slash so directory-style patterns match a canonical
@@ -145,6 +169,10 @@ check_allowlist() {
         err "Run ./install.sh from anders-dotfiles to bootstrap, or create the file manually."
         exit 1
     fi
+    # Match the PROJECT identity: a worktree of an allowlisted project is allowed
+    # (project-scoping preserved — a worktree of a NON-allowlisted project is not).
+    local match_path
+    match_path="$(project_equiv "${canonical}")"
     local line entry resolved
     while IFS= read -r line; do
         # Strip comments and whitespace
@@ -164,8 +192,8 @@ check_allowlist() {
         else
             resolved="${entry}"
         fi
-        # Exact-prefix (startswith) match
-        if [[ "${canonical}" == "${resolved}"* ]]; then
+        # Exact-prefix (startswith) match against the project-equivalent path
+        if [[ "${match_path}" == "${resolved}"* ]]; then
             return 0
         fi
     done < "${ALLOWLIST_FILE}"

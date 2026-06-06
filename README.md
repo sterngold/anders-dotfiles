@@ -1,68 +1,48 @@
 # anders-dotfiles
 
-Claude Code configuration across machines. Four modes, three machines, one source of truth.
+Host-portable Claude Code and AI-agent configuration.
 
-## What's versioned
+This repository keeps the House of Anders agent context layer reproducible across machines: shared `CLAUDE.md` / `AGENTS.md` context, MCP rendering, hook loaders, shell aliases, and validation scripts. It is public as an example of how I keep AI-agent workflows consistent without copying rules into every tool by hand.
+
+## What's Versioned
 
 | Path | Role |
 |---|---|
-| `claude/settings.json` | Default `claude` — daily driver base |
-| `claude/CLAUDE.md` | Global context loader (Constitution) — linked to `.claude-full` |
-| `claude/statusline.sh` | Shared status line shell script |
-| `claude/keybindings.json` | Keybindings |
-| `claude-full/settings.json` | `cc` alias → `~/.claude-full/` — full mirror |
-| `claude-build/settings.json` | `cc-build` alias → `~/.claude-build/` — coding/spec focus |
-| `claude-partner/settings.json` | `cc-partner` alias → `~/.claude-partner/` — clean-room partner |
-| `zsh/cc-aliases.zsh` | `cc` / `cc-build` / `cc-partner` shell aliases |
+| `claude/` | Default Claude Code configuration and global context loader |
+| `claude-full/` | Full-context mode for deeper project work |
+| `claude-build/` | Build/spec-focused mode |
+| `claude-partner/` | Clean-room partner mode |
+| `zsh/cc-aliases.zsh` | Project-opening aliases and worktree helpers |
+| `context-sync/` | Context rendering, AGENTS assembly, and validation scripts |
 
-## What's NOT versioned
+## What's Not Versioned
 
-- `~/.claude*/projects/` — auto-memory, session history (per-machine)
-- `~/.claude*/plugins/` — installed plugins (per-machine, cached from marketplaces)
-- `~/.claude*/file-history/` — edit history (ephemeral)
-- `~/.claude*/backups/` — internal state (ephemeral)
-- `~/.claude*/settings.local.json` — machine-specific overrides (if you ever need per-machine differences)
-- `~/.claude/skills/` — symlinks to `00_SYSTEM/anders-config/skills/` (versioned there)
+- Per-machine session history and auto-memory.
+- Plugin caches and local tool state.
+- Machine-specific settings, secrets, and credentials.
+- Private project contents.
 
-## Install (new machine)
+## Install
 
 ```bash
-cd ~ && git clone git@github.com:sterngold/anders-dotfiles.git
-cd anders-dotfiles && ./install.sh
+cd ~
+git clone git@github.com:sterngold/anders-dotfiles.git
+cd anders-dotfiles
+./install.sh
 ```
 
-`install.sh` is idempotent — safe to re-run after pulling updates.
+`install.sh` is idempotent: it creates or refreshes symlinks, renders local config, and leaves machine-specific state outside the repo.
 
-## Machines
+## Verify
 
-| Machine | Role | Notes |
-|---|---|---|
-| AndersStar (M5 Max 128GB) | Main / server | Arrives Apr 21, 2026 |
-| BabyStar (M5 Air 16GB) | Personal extension | Current daily driver |
-| Alex's M5 Air | Shared with brother | Different user possible — may need path templating |
-
-## Path assumptions
-
-Path assumptions are machine-specific via `PROJECTS_ROOT` (set in `~/.zprofile` per machine):
-- AndersStar (primary): `PROJECTS_ROOT=~/Code/my-projects`
-- BabyStar (travel): `PROJECTS_ROOT=~/Code/my-projects` (moved out of Google Drive 2026-05-09)
-
-`settings.json` hooks and `statusline.sh` use `${PROJECTS_ROOT}` — add it to `~/.zprofile` on any new machine before installing.
-
-`cc <name>` resolves projects under `$PROJECTS_ROOT` (workspace + categories) and, by
-default, the parent dir (`~/Code` siblings). To let `cc` find projects that live elsewhere,
-set a colon-separated `CC_PROJECT_ROOTS` in `~/.zprofile`:
-
-```sh
-export CC_PROJECT_ROOTS="$HOME/Code:$HOME/work:$HOME/clients"
+```bash
+bash context-sync/doctor.sh
+bash context-sync/assemble-agents.sh --check .
+shellcheck install.sh context-sync/*.sh
 ```
 
-Each entry is scanned for an exact (case-insensitive) name match. For a one-off in an
-unlisted location, `cc /abs/path` or `cc ~/anywhere/proj` resolves the path directly.
-Auto-worktrees base off each repo's true default branch (`origin/HEAD`), not local `main`.
+The validator catches missing imports, unsafe context paths, stale generated files, and hook-loader drift before the config is reused elsewhere.
 
-## Updating
+## Why This Exists
 
-Edit files in this repo, commit, push. On other machines: `git pull && ./install.sh` (no-op if symlinks already correct).
-
-Per `00_SYSTEM/anders-config/rules/git-discipline.md`: one concern per commit, message = why not what.
+AI-agent work gets brittle when every tool has its own half-remembered prompt and local convention file. This repo keeps the context layer explicit, testable, and portable: one source of truth, multiple agent surfaces.

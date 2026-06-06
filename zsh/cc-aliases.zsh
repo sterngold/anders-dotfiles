@@ -472,6 +472,57 @@ cc-finance() {
   )
 }
 
+# ── Cross-agent build worktree (The Link / Codex handoff) ───────────────────────
+# `codexwt <project> <branch> [worktree-name]` — make an isolated, build-ready worktree
+# for handing a coding task to Codex (or any agent) WITHOUT typing the uv-sync dance:
+#   1. detached checkout off origin/<branch> — detached frees the branch name, so this
+#      session's own worktree (which may hold <branch>) doesn't collide; the build pushes
+#      back with `git push origin HEAD:<branch>`.
+#   2. uv-sync the venv ONLY if the project is a uv project (pyproject.toml present).
+#      uv reflinks from the warm ~/.cache/uv on APFS → seconds, not a re-download. Extras
+#      default to --all-extras (covers e.g. AndersMem's required mcp+dev); override with
+#      CODEXWT_UV_ARGS (e.g. CODEXWT_UV_ARGS='--extra mcp --extra dev'). Python is taken
+#      from the project's .python-version automatically.
+#   3. cd you in, ready for `codex exec --full-auto "..."`.
+# Isolation-safe by construction (separate worktree, never the primary checkout). For a
+# submodule project the worktree is of the submodule repo, which is fine for a self-
+# contained build (no superproject tools needed). Clean up after: `git -C <proj> worktree
+# remove <wt>` (printed on success).
+codexwt() {
+  local name="$1" branch="${2#origin/}" wtname="$3"
+  if [[ -z "$name" || -z "$branch" ]]; then
+    print -u2 "usage: codexwt <project> <branch> [worktree-name]"
+    return 2
+  fi
+  local root="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
+  local proj
+  proj=$(_cc_resolve_project "$root" "$name") || return 1
+  local base="$HOME/codex-worktrees"
+  mkdir -p "$base"
+  [[ -n "$wtname" ]] || wtname="${proj:t}-${branch:t}"
+  local wt="$base/$wtname"
+  if [[ -e "$wt" ]]; then
+    print -u2 "codexwt: $wt already exists — remove it first: git -C ${proj} worktree remove $wt"
+    return 1
+  fi
+  print -u2 "codexwt: fetching origin in ${proj} ..."
+  git -C "$proj" fetch origin || return 1
+  if ! git -C "$proj" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    print -u2 "codexwt: origin/$branch not found in ${proj} (push the branch first?)"
+    return 1
+  fi
+  print -u2 "codexwt: detached worktree at $wt off origin/$branch"
+  git -C "$proj" worktree add --detach "$wt" "origin/$branch" || return 1
+  cd "$wt" || return 1
+  if [[ -f pyproject.toml ]]; then
+    local uvargs="${CODEXWT_UV_ARGS:---all-extras}"
+    print -u2 "codexwt: uv sync ${uvargs} (warm cache → APFS reflink, seconds) ..."
+    uv sync ${=uvargs} || print -u2 "codexwt: uv sync failed — fix deps before building"
+  fi
+  print -u2 "codexwt: ready in $wt (detached at origin/$branch)"
+  print -u2 "codexwt: when green → git push origin HEAD:$branch ; cleanup → git -C ${proj} worktree remove $wt"
+}
+
 # ── Health check ──────────────────────────────────────────────────────────────
 # `ccdoctor` runs the cc-resolver invariant check (sibling cc-doctor.zsh): asserts
 # every active project resolves uniquely via `cc <name>`. Run it after archiving,

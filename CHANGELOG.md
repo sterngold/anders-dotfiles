@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1](https://github.com/sterngold/anders-dotfiles/compare/v1.11.0...v1.11.1) (2026-06-06)
+
+
+### Bug Fixes
+
+* **github-mcp:** resolve gh by absolute path in .zshenv (PATH not ready yet) ([2ccc44d](https://github.com/sterngold/anders-dotfiles/commit/2ccc44dbae6026c206c135ec69339a73096b8efb))
+
 ## [1.11.0](https://github.com/sterngold/anders-dotfiles/compare/v1.10.0...v1.11.0) (2026-06-05)
 
 

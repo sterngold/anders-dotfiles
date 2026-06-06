@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0](https://github.com/sterngold/anders-dotfiles/compare/v1.11.1...v1.12.0) (2026-06-06)
+
+
+### Features
+
+* **zsh:** codexwt — isolated build-ready worktree for cross-agent handoff ([bde4fe9](https://github.com/sterngold/anders-dotfiles/commit/bde4fe9b250b812817ffec355bcb7388e8a5510e))
+
 ## [1.11.1](https://github.com/sterngold/anders-dotfiles/compare/v1.11.0...v1.11.1) (2026-06-06)
 
 

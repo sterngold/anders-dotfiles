@@ -1,29 +1,44 @@
-# RTK - Rust Token Killer
+# RTK - Rust Token Killer (retired locally)
 
-**Usage**: Token-optimized CLI proxy (60-90% savings on dev operations)
+**Status as of 2026-06-07**: RTK is no longer part of the active Claude Code token-management stack on this machine.
 
-## Meta Commands (always use rtk directly)
+## Current decision
+
+Use **Lean Context** as the single active reducer, configured `minimal` + `agents-only`.
+Use **ccusage** as a read-only measurement layer.
+Do **not** run `rtk init -g` unless explicitly replacing Lean Context.
+
+## Why RTK was retired
+
+Local verification showed:
 
 ```bash
-rtk gain              # Show token savings analytics
-rtk gain --history    # Show command usage history with savings
-rtk discover          # Analyze Claude Code history for missed opportunities
-rtk proxy <cmd>       # Execute raw command without filtering (for debugging)
+rtk gain     # No tracking data yet
+rtk session  # No hook installed
 ```
 
-## Installation Verification
+RTK was installed but not active, while Lean Context was already wired into Claude Code hooks and reporting real savings.
+Running both would add duplicate command-rewrite policy and increase drift risk.
+
+## Reversible rollback
+
+The binary was not deleted. It was renamed to:
 
 ```bash
-rtk --version         # Should show: rtk X.Y.Z
-rtk gain              # Should work (not "command not found")
-which rtk             # Verify correct binary
+~/.local/bin/rtk.disabled-20260607_agent_only_lean
 ```
 
-⚠️ **Name collision**: If `rtk gain` fails, you may have reachingforthejack/rtk (Rust Type Kit) installed instead.
+To restore RTK manually:
 
-## Hook-Based Usage
+```bash
+mv ~/.local/bin/rtk.disabled-20260607_agent_only_lean ~/.local/bin/rtk
+rtk --version
+```
 
-All other commands are automatically rewritten by the Claude Code hook.
-Example: `git status` → `rtk git status` (transparent, 0 tokens overhead)
+Only after explicitly deciding to replace Lean Context:
 
-Refer to CLAUDE.md for full command reference.
+```bash
+rtk init -g
+rtk session
+rtk gain
+```

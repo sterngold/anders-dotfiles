@@ -45,9 +45,11 @@ A/B/C described a repo's *starting* state and over-counted (Momentum/Nudge were 
 | golden-soviet-gallery | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #3; from-scratch; `AGENTS.*` prettier-ignored before assembly) |
 | vlad-sterngold-os | ~/Code (governed site) | governed-site | ✅ done (AND-1296, PR #12; migration — former CLAUDE.md → `AGENTS.body.md` §14) |
 | seo-ops | ~/Code (ops repo) | governed-site | ✅ done (AND-1296, PR #9; migration — former CLAUDE.md → `AGENTS.body.md` §14, + `@HANDOVER.md`) |
+| prompt-translator | ~/Code (public case study) | sibling-direct | ✅ done (AND-1519, `affccd7`; from-scratch + full template baseline: pre-commit, gitleaks, CI — docs-only repo, all stack CI jobs skip) |
+| notebooklm-skill | ~/Code (public skill) | sibling-direct | ✅ done (AND-1519, `a551027`; from-scratch + full template baseline; python CI job off by design — no `pyproject.toml`, skill manages its own `.venv`) |
 | **my-projects (root)** | workspace root | root | 🟦 **intentional exception** — hand-written workspace canon, NOT assembled by design. Do not "fix" it. |
 
-**Tally:** 16 done · 0 anomaly · 0 remaining · 1 intentional exception (my-projects root). **STANDARDIZATION COMPLETE (2026-06-04)** — every repo is on the assemble pipeline (`--check` 0) except the intentional hand-written my-projects-root canon. AND-1296 + AND-1298 both Done.
+**Tally:** 18 done · 0 anomaly · 0 remaining · 1 intentional exception (my-projects root). **STANDARDIZATION COMPLETE (2026-06-04; +2 public flagships 2026-06-12, AND-1519)** — every repo is on the assemble pipeline (`--check` 0) except the intentional hand-written my-projects-root canon. AND-1296 + AND-1298 + AND-1519 all Done.
 
 ## 🔴 Prettier landmine (read before any TS/React repo)
 

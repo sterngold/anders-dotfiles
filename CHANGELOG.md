@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1](https://github.com/sterngold/anders-dotfiles/compare/v1.12.0...v1.12.1) (2026-06-22)
+
+
+### Bug Fixes
+
+* **host-portability:** make html-hub paths ~/-relative in claude/CLAUDE.md (was leaked absolute literal, doctor exit 12) ([a2f7860](https://github.com/sterngold/anders-dotfiles/commit/a2f78607e47fd7eed90f812d990ddd6c0f166c7f))
+
 ## [1.12.0](https://github.com/sterngold/anders-dotfiles/compare/v1.11.1...v1.12.0) (2026-06-06)
 
 

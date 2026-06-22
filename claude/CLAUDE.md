@@ -15,6 +15,8 @@ Use it as a lens, not a script. Challenge me against it.
 
 Before editing any file, read it first. Before modifying a function, grep for all callers. Research before you edit.
 
+Write standalone HTML deliverables to ~/Code/my-projects/html-hub/. The html-hub indexer (~/Code/my-projects/html-hub/html_hub.py) scans $HOME regardless, so strays elsewhere still get picked up on the next run.
+
 ## Vault-as-context imports (opt-in)
 
 This home loader can pull designated Obsidian vault notes into every agent's

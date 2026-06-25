@@ -472,6 +472,17 @@ cc-finance() {
   )
 }
 
+# Vault shortcut — Health lives outside PROJECTS_ROOT at ~/Vaults/self/Health/.
+# Uses same green as cc + local model class (sovereign tools allowed).
+cc-health() {
+  (
+    cd ~/Vaults/self/Health || return
+    _cc_apply_visuals CC Health 0 200 80
+    trap '_cc_reset_visuals' EXIT INT TERM
+    AW_F7_MODEL_CLASS=local CLAUDE_CONFIG_DIR="$HOME/.claude-full" claude --add-dir "$HOME/Vaults" "$@"
+  )
+}
+
 # ── Cross-agent build worktree (The Link / Codex handoff) ───────────────────────
 # `codexwt <project> <branch> [worktree-name]` — make an isolated, build-ready worktree
 # for handing a coding task to Codex (or any agent) WITHOUT typing the uv-sync dance:

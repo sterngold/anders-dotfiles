@@ -109,7 +109,6 @@ except Exception as e:
 MODEL=$(echo "$PARSED" | sed -n '1p')
 CTX_PCT=$(echo "$PARSED" | sed -n '2p')
 CTX_TOKENS=$(echo "$PARSED" | sed -n '3p')
-CTX_WINDOW=$(echo "$PARSED" | sed -n '4p')
 SESSION_SECS=$(echo "$PARSED" | sed -n '5p')
 COST_USD=$(echo "$PARSED" | sed -n '6p')
 LINES_CHANGED=$(echo "$PARSED" | sed -n '7p')
@@ -152,7 +151,7 @@ PROJ_NAME="workspace"
 if [ -n "${PROJECTS_ROOT:-}" ] && [ -n "${PWD:-}" ]; then
   case "$PWD" in
     "$PROJECTS_ROOT")     PROJ_NAME="workspace" ;;
-    "$PROJECTS_ROOT"/*)   PROJ_NAME="${PWD#$PROJECTS_ROOT/}"; PROJ_NAME="${PROJ_NAME%%/*}" ;;
+    "$PROJECTS_ROOT"/*)   PROJ_NAME="${PWD#"$PROJECTS_ROOT"/}"; PROJ_NAME="${PROJ_NAME%%/*}" ;;
     *)                    PROJ_NAME="$(basename "$PWD")" ;;
   esac
 fi
@@ -234,7 +233,7 @@ print(int(d.get('five_hour',{}).get('utilization',0) or 0), int(d.get('seven_day
     echo "$(date): OAuth token extraction failed" >> "$LOG"
   fi
 fi
-read H5_PCT D7_PCT < "$USAGE_CACHE" 2>/dev/null
+read -r H5_PCT D7_PCT < "$USAGE_CACHE" 2>/dev/null
 H5_PCT="${H5_PCT:-0}"; D7_PCT="${D7_PCT:-0}"
 if [ "$H5_PCT" -lt 50 ] 2>/dev/null; then H5_C="$G"; elif [ "$H5_PCT" -lt 80 ] 2>/dev/null; then H5_C="$Y"; else H5_C="$RED"; fi
 if [ "$D7_PCT" -lt 50 ] 2>/dev/null; then D7_C="$G"; elif [ "$D7_PCT" -lt 80 ] 2>/dev/null; then D7_C="$Y"; else D7_C="$RED"; fi

@@ -29,7 +29,8 @@ link() {
     fi
   fi
   if [[ -e "$dst" && ! -L "$dst" ]]; then
-    local backup="$dst.pre-dotfiles.$(date +%Y%m%d_%H%M%S)"
+    local backup
+    backup="$dst.pre-dotfiles.$(date +%Y%m%d_%H%M%S)"
     echo "  BACK $dst -> $backup"
     mv "$dst" "$backup"
   fi
@@ -182,9 +183,11 @@ link "$HOME_DIR/Code/my-projects/.claude/agents" "$HOME_DIR/.claude-full/agents"
 # Zsh aliases — source line added to ~/.zprofile if not present
 ZSH_SOURCE_LINE="[[ -f $REPO/zsh/cc-aliases.zsh ]] && source $REPO/zsh/cc-aliases.zsh"
 if ! grep -Fq "$REPO/zsh/cc-aliases.zsh" "$HOME_DIR/.zprofile" 2>/dev/null; then
-  echo "" >> "$HOME_DIR/.zprofile"
-  echo "# anders-dotfiles: Claude Code mode aliases" >> "$HOME_DIR/.zprofile"
-  echo "$ZSH_SOURCE_LINE" >> "$HOME_DIR/.zprofile"
+  {
+    echo ""
+    echo "# anders-dotfiles: Claude Code mode aliases"
+    echo "$ZSH_SOURCE_LINE"
+  } >> "$HOME_DIR/.zprofile"
   echo "  ADD  source line in ~/.zprofile"
 else
   echo "  OK   ~/.zprofile already sources cc-aliases.zsh"
@@ -196,9 +199,11 @@ fi
 # plugin:github:github. launchd → ~/.local/bin/claude-mcp. See memory github-mcp-setup.
 ZSHENV_SOURCE_LINE="[[ -f $REPO/zsh/github-token.zsh ]] && source $REPO/zsh/github-token.zsh"
 if ! grep -Fq "$REPO/zsh/github-token.zsh" "$HOME_DIR/.zshenv" 2>/dev/null; then
-  echo "" >> "$HOME_DIR/.zshenv"
-  echo "# anders-dotfiles: GitHub MCP token (all zsh contexts)" >> "$HOME_DIR/.zshenv"
-  echo "$ZSHENV_SOURCE_LINE" >> "$HOME_DIR/.zshenv"
+  {
+    echo ""
+    echo "# anders-dotfiles: GitHub MCP token (all zsh contexts)"
+    echo "$ZSHENV_SOURCE_LINE"
+  } >> "$HOME_DIR/.zshenv"
   echo "  ADD  source line in ~/.zshenv (github-token)"
 else
   echo "  OK   ~/.zshenv already sources github-token.zsh"
@@ -229,9 +234,11 @@ link "$REPO/config/atuin/config.toml" "$HOME_DIR/.config/atuin/config.toml"
 #    an interactive shell). Appended last so starship init owns PROMPT/RPROMPT.
 TS_SOURCE_LINE="[[ -f $REPO/zsh/terminal-stack.zsh ]] && source $REPO/zsh/terminal-stack.zsh"
 if ! grep -Fq "$REPO/zsh/terminal-stack.zsh" "$HOME_DIR/.zshrc" 2>/dev/null; then
-  echo "" >> "$HOME_DIR/.zshrc"
-  echo "# anders-dotfiles: terminal productivity stack (starship/atuin/eza/yazi/zoxide…)" >> "$HOME_DIR/.zshrc"
-  echo "$TS_SOURCE_LINE" >> "$HOME_DIR/.zshrc"
+  {
+    echo ""
+    echo "# anders-dotfiles: terminal productivity stack (starship/atuin/eza/yazi/zoxide…)"
+    echo "$TS_SOURCE_LINE"
+  } >> "$HOME_DIR/.zshrc"
   echo "  ADD  source line in ~/.zshrc (terminal stack)"
 else
   echo "  OK   ~/.zshrc already sources terminal-stack.zsh"

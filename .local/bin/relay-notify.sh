@@ -4,7 +4,6 @@
 # Transport: peer-to-peer via Tailscale (no central server since Mar 24)
 #
 # Config:
-MY_NAME="vlad"
 ALEX_HOST="alexair"
 ALEX_RELAYS="/Users/alex/relays/sent"
 LOCAL_INBOX="$HOME/Code/my-projects/VladContext/relays/inbox"
@@ -14,6 +13,7 @@ TG_ENV="$HOME/.config/anders-loc/.env"
 TG_CHAT_ID="8771351464"                     # Vlad
 
 # Load Telegram token (absence = skip Telegram leg, macOS notification still fires)
+# shellcheck source=/dev/null
 [ -f "$TG_ENV" ] && . "$TG_ENV"
 
 mkdir -p "$LOCAL_INBOX"

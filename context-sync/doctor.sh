@@ -111,7 +111,7 @@ if [[ -f "$ROUTER" ]]; then
     [[ -z "$imp" ]] && continue
     # Expand leading ~ and resolve relative imports against the router's dir.
     case "$imp" in
-      "~/"*) target="$HOME_DIR/${imp#\~/}" ;;
+      ~/*)   target="$HOME_DIR/${imp#~/}" ;;
       "/"*)  target="$imp" ;;
       *)     target="$(dirname "$ROUTER")/$imp" ;;
     esac
@@ -119,9 +119,13 @@ if [[ -f "$ROUTER" ]]; then
       note_ok "@$imp -> $target"
     else
       case "$imp" in
-        "~/Vaults/"*) [[ -d "$HOME_DIR/Vaults" ]] \
-            && note_fail 11 "missing import: @$imp" \
-            || note_fail 13 "vault import @$imp but ~/Vaults absent" ;;
+        ~/Vaults/*)
+          if [[ -d "$HOME_DIR/Vaults" ]]; then
+            note_fail 11 "missing import: @$imp"
+          else
+            note_fail 13 "vault import @$imp but ~/Vaults absent"
+          fi
+          ;;
         *) note_fail 11 "missing import: @$imp" ;;
       esac
     fi
@@ -150,7 +154,7 @@ for f in "${COMMITTED_CONTEXT[@]}"; do
   hits="$(grep -nE "$leak_re" "$f" 2>/dev/null)"; rc=$?
   case $rc in
     0) note_fail 12 "leaked absolute path in committed file: $f"; (( JSON_MODE )) || printf '%s\n' "$hits" | sed 's/^/      /' ;;
-    1) note_ok "no leaked literals: ${f#$REPO/}" ;;
+    1) note_ok "no leaked literals: ${f#"$REPO"/}" ;;
     *) note_fail 12 "grep errored (rc=$rc) scanning $f — cannot verify" ;;
   esac
 done

@@ -51,6 +51,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: shellcheck
+        run: shellcheck install.sh sync-settings.sh context-sync/*.sh .local/bin/relay-notify.sh claude/statusline.sh
+
   python:
     name: python lint + test
     needs: detect
@@ -64,17 +72,12 @@ jobs:
       # --all-groups: PEP 735 [dependency-groups]
       - run: uv sync --frozen --all-extras --all-groups
       # ruff via uvx — no need to add ruff to project deps.
-      # Lint is advisory by default so legacy code doesn't block adoption.
-      # Flip continue-on-error to false once the repo lints clean.
-      - name: ruff check (advisory)
-        continue-on-error: true
+      - name: ruff check
         run: uvx ruff@0.6.9 check .
-      - name: ruff format check (advisory)
-        continue-on-error: true
+      - name: ruff format check
         run: uvx ruff@0.6.9 format --check .
-      - name: pytest (advisory)
+      - name: pytest
         if: hashFiles('tests/**') != ''
-        continue-on-error: true
         run: uv run pytest -q
 
   node:
@@ -90,11 +93,9 @@ jobs:
       # npm install (not ci) tolerates lockfile drift and missing lockfile.
       # Lock down to `npm ci` per-repo once the lockfile is reliably in sync.
       - run: npm install --no-audit --no-fund
-      - name: lint (advisory)
-        continue-on-error: true
+      - name: lint
         run: npm run lint --if-present
-      - name: test (advisory)
-        continue-on-error: true
+      - name: test
         run: npm test --if-present
 
   swift:
@@ -104,17 +105,15 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - name: swift build (advisory)
-        continue-on-error: true
+      - name: swift build
         run: swift build
-      - name: swift test (advisory)
+      - name: swift test
         if: hashFiles('Tests/**') != ''
-        continue-on-error: true
         run: swift test
 
   ci:
     name: ci
-    needs: [commitlint, gitleaks, python, node, swift]
+    needs: [commitlint, gitleaks, shellcheck, python, node, swift]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -122,6 +121,7 @@ jobs:
         run: |
           # Fail if any required upstream job failed (skipped is OK for stack-conditional jobs)
           for r in "${{ needs.commitlint.result }}" "${{ needs.gitleaks.result }}" \
+                   "${{ needs.shellcheck.result }}" \
                    "${{ needs.python.result }}" "${{ needs.node.result }}" "${{ needs.swift.result }}"; do
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
               echo "Upstream job failed: $r"

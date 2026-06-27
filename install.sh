@@ -266,6 +266,27 @@ fi
 PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-mcp.sh" \
   || echo "  WARN render-mcp.sh exited $? — .mcp.json may be stale/missing; re-run 'bash $REPO/context-sync/render-mcp.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
 
+# GitHub transport — HTTPS-canonical (AndersOS Claude Code Admin Policy, 2026-06-27).
+# The Claude Code sandbox network layer is domain-only and cannot proxy SSH (port 22), so
+# git@github.com: fails in-sandbox while HTTPS (443, allowlisted) works. Rewrite GitHub SSH
+# remotes to HTTPS transparently; the gh credential helper authenticates. Idempotent.
+# Policy: 00_SYSTEM/AndersSecurity/policies/claude-code-admin-policy.md
+git config --global url."https://github.com/".insteadOf "git@github.com:" \
+  && echo "  git: GitHub SSH→HTTPS rewrite set (sandbox-compatible transport)" \
+  || echo "  WARN could not set GitHub SSH→HTTPS git rewrite"
+
+# Claude Code MANAGED admin policy — root-owned security floor at /Library (macOS).
+# NOT installed automatically: it needs sudo and is a deliberate, gated step. Surface the
+# command + a non-fatal drift check so a fresh/peer host is told to deploy it.
+if [[ -f "$REPO/context-sync/install-managed-policy.sh" ]]; then
+  if bash "$REPO/context-sync/install-managed-policy.sh" --check >/dev/null 2>&1; then
+    echo "  claude managed policy: deployed + in sync"
+  else
+    echo "  NOTE Claude Code managed admin policy not deployed/in-sync on this host."
+    echo "       Deploy (sudo): bash $REPO/context-sync/install-managed-policy.sh"
+  fi
+fi
+
 # Context files: thin-pointer model (2026-05-31). AGENTS.md is the hand-edited
 # canonical cross-tool source; CLAUDE.md is a STATIC pointer that imports it via
 # `@AGENTS.md`. Nothing to render here — `make doctor` (§15) asserts the integrity

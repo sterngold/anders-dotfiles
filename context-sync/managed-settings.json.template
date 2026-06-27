@@ -1,0 +1,63 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(cat */.env*)",
+      "Bash(cat */secrets/*)",
+      "Bash(cat *credentials*)",
+      "Bash(git push --force *)",
+      "Bash(git push --force)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -fr /)",
+      "Bash(rm -r -f /)",
+      "Bash(rm -rf / *)",
+      "Bash(rm -rf /)",
+      "Edit(*/.env*)",
+      "Edit(*/secrets/*)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Write(*/.env*)",
+      "Write(*/secrets/*)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Read(${HOME}/.config/anders-loc/.env)",
+      "Edit(${HOME}/.config/anders-loc/.env)",
+      "Write(${HOME}/.config/anders-loc/.env)",
+      "mcp__claude_ai_Interactive_Brokers_IBKR__create_order_instruction",
+      "mcp__claude_ai_Interactive_Brokers_IBKR__delete_order_instruction",
+      "mcp__plugin_playwright_playwright__browser_run_code_unsafe"
+    ]
+  },
+  "disableBypassPermissionsMode": "disable",
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "100.98.185.123",
+        "*.ts.net",
+        "claude.com",
+        "anthropic.com",
+        "*.anthropic.com",
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "*.supabase.co",
+        "*.supabase.com"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "${HOME}",
+        "/tmp",
+        "/private/tmp"
+      ]
+    },
+    "excludedCommands": [
+      "gh *"
+    ]
+  }
+}

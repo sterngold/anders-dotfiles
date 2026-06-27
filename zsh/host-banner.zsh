@@ -13,7 +13,7 @@
 _anders_host_banner() {
   # Only real interactive terminals — never pollute scripts / `ssh host cmd` output.
   [[ -o interactive && -t 1 ]] || return
-  local h="${HOST:-$(hostname -s)}"
+  local h="${HOST:-$(hostname -s)}"; h="${h:l}"   # lowercase → match regardless of host casing
   print -P ''
   case "$h" in
     andersstar*)

@@ -600,3 +600,7 @@ atlas() {
   local root="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
   PROJECTS_ROOT="$root" python3 "$root/00_SYSTEM/anders-config/tools/process-atlas.py" --open "$@"
 }
+
+# Per-machine identity banner (login shells → once per terminal tab). See host-banner.zsh.
+# Replaces the fragile iTerm2 "Send text at start" approach. Host-portable via ${0:A:h}.
+[[ -f "${0:A:h}/host-banner.zsh" ]] && source "${0:A:h}/host-banner.zsh"

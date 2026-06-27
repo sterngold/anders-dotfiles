@@ -25,9 +25,9 @@
       "mcp__claude_ai_Interactive_Brokers_IBKR__create_order_instruction",
       "mcp__claude_ai_Interactive_Brokers_IBKR__delete_order_instruction",
       "mcp__plugin_playwright_playwright__browser_run_code_unsafe"
-    ]
+    ],
+    "disableBypassPermissionsMode": "disable"
   },
-  "disableBypassPermissionsMode": "disable",
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,

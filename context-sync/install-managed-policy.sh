@@ -30,14 +30,50 @@ TARGET="$TARGET_DIR/managed-settings.json"
 
 PROJECTS_ROOT="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
 
+# Single source of truth for egress: the OS sandbox network allowlist is DERIVED from the
+# same curated file the egress-gate.sh PreToolUse hook reads, so the two enforcement layers
+# (OS seatbelt sandbox + the hook) can never drift. Default = the deployed copy the hook
+# actually reads on THIS host (per-host, like managed-settings itself). Override for tests.
+ALLOWLIST_SRC="${ANDERS_EGRESS_ALLOWLIST:-$HOME/.claude-full/egress-allowlist.txt}"
+
 [[ -f "$TEMPLATE" ]] || { echo "install-managed-policy: template not found: $TEMPLATE" >&2; exit 2; }
 
-# Render: literal-token substitution (no envsubst dependency), matching render-mcp.sh.
+# Render: literal-token substitution (no envsubst dependency), matching render-mcp.sh, then
+# regenerate sandbox.network.allowedDomains from ALLOWLIST_SRC when python3 + the file are
+# present. If either is missing, the template's literal allowedDomains floor (which keeps
+# localhost/127.0.0.1) stands unchanged — a degraded host still reaches sovereign local engines.
 render() {
   local content
   content="$(cat "$TEMPLATE")"
   content="${content//\$\{PROJECTS_ROOT\}/$PROJECTS_ROOT}"
   content="${content//\$\{HOME\}/$HOME}"
+  if command -v python3 >/dev/null 2>&1 && [[ -f "$ALLOWLIST_SRC" ]]; then
+    # Parse the allowlist (strip #-comments + whitespace, dedupe, preserve order — mirrors
+    # egress-gate.sh::is_allowed) and overwrite sandbox.network.allowedDomains in the JSON.
+    # The template post-substitution is valid JSON, so we load → set → re-dump deterministically.
+    # Content goes in via an env var (NOT stdin) so the heredoc keeps stdin for the script.
+    local regenerated
+    if regenerated="$(MP_CONTENT="$content" MP_ALLOWLIST="$ALLOWLIST_SRC" python3 2>/dev/null <<'PY'
+import json, os
+doc = json.loads(os.environ["MP_CONTENT"])
+domains, seen = [], set()
+with open(os.environ["MP_ALLOWLIST"], encoding="utf-8") as fh:
+    for line in fh:
+        tok = line.split("#", 1)[0].strip()
+        if tok and tok not in seen:
+            seen.add(tok); domains.append(tok)
+if not domains:                                   # empty/garbage allowlist → keep template floor
+    raise SystemExit(3)
+doc.setdefault("sandbox", {}).setdefault("network", {})["allowedDomains"] = domains
+doc["sandbox"]["network"].pop("_comment", None)   # drop the fallback-doc note from the deployed file
+print(json.dumps(doc, indent=2))
+PY
+    )"; then
+      content="$regenerated"
+    else
+      echo "install-managed-policy: NOTE allowlist regeneration skipped (no usable $ALLOWLIST_SRC) — using template floor" >&2
+    fi
+  fi
   printf '%s\n' "$content"
 }
 

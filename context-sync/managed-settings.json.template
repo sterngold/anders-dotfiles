@@ -33,7 +33,10 @@
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
     "network": {
+      "_comment": "allowedDomains is REGENERATED at install time from the egress allowlist (~/.claude-full/egress-allowlist.txt) so the OS sandbox and the egress-gate.sh hook share ONE source of truth (see install-managed-policy.sh). This literal is the no-python fallback floor — it MUST keep localhost/127.0.0.1 so sovereign local engines stay reachable even on a degraded host.",
       "allowedDomains": [
+        "localhost",
+        "127.0.0.1",
         "100.98.185.123",
         "*.ts.net",
         "claude.com",
@@ -53,7 +56,9 @@
       "allowWrite": [
         "${HOME}",
         "/tmp",
-        "/private/tmp"
+        "/private/tmp",
+        "/var/folders",
+        "/private/var/folders"
       ]
     },
     "excludedCommands": [

@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1](https://github.com/sterngold/anders-dotfiles/compare/v1.14.0...v1.14.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **cc:** submodule-root projects worktree the submodule itself + loud broken-git warning ([7b097e5](https://github.com/sterngold/anders-dotfiles/commit/7b097e5472be22be9b14d69493a87ed6f9133da6))
+
 ## [1.14.0](https://github.com/sterngold/anders-dotfiles/compare/v1.13.0...v1.14.0) (2026-06-28)
 
 

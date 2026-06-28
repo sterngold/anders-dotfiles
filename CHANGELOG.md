@@ -8,6 +8,19 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0](https://github.com/sterngold/anders-dotfiles/compare/v1.13.0...v1.14.0) (2026-06-28)
+
+
+### Features
+
+* **policy:** exclude ollama CLI from sandbox (loopback unreachable in-sandbox) ([4b1eb7c](https://github.com/sterngold/anders-dotfiles/commit/4b1eb7c5348cd0b68d5fff7b9177446d0585f221))
+
+
+### Bug Fixes
+
+* **babystar:** double-wide stripes + travel marker for unmistakable design ([dc4ada6](https://github.com/sterngold/anders-dotfiles/commit/dc4ada69ae40137a52f0fa443e1096eefb0bd626))
+* **babystar:** fix double banner + make BabyStar header more striking ([9c57045](https://github.com/sterngold/anders-dotfiles/commit/9c5704582c3bd47eb72b9dfce4b4823c4260b317))
+
 ## [1.13.0](https://github.com/sterngold/anders-dotfiles/compare/v1.12.1...v1.13.0) (2026-06-28)
 
 

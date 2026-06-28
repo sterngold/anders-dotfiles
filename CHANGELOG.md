@@ -8,6 +8,22 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0](https://github.com/sterngold/anders-dotfiles/compare/v1.12.1...v1.13.0) (2026-06-28)
+
+
+### Features
+
+* **cc:** add cc-health vault shortcut mirroring cc-finance ([0b3aad1](https://github.com/sterngold/anders-dotfiles/commit/0b3aad192a9d946f719ee655be1780cf644764ae))
+* **policy:** managed-settings floor template + installer + HTTPS-canonical git transport ([441d386](https://github.com/sterngold/anders-dotfiles/commit/441d38639aaa08a684e364a73894d1c4056912ac))
+* **policy:** single-source sandbox allowedDomains from egress-allowlist + unblock localhost ([72cbc36](https://github.com/sterngold/anders-dotfiles/commit/72cbc360d106f10d61bcd66eb1569e8a7860e8ca))
+* **zsh:** per-machine identity banner (host-banner.zsh) ([773a35d](https://github.com/sterngold/anders-dotfiles/commit/773a35d51f6e6808eebb598cc171146097ec4026))
+
+
+### Bug Fixes
+
+* **policy:** nest disableBypassPermissionsMode under permissions ([82fccfe](https://github.com/sterngold/anders-dotfiles/commit/82fccfe7878b487493c9a56d60fdb38e44ef1725))
+* **zsh:** lowercase hostname in host-banner so BabyStar matches any casing ([823195e](https://github.com/sterngold/anders-dotfiles/commit/823195e5c37cf0e52194644a3c8b5281c229645e))
+
 ## [1.12.1](https://github.com/sterngold/anders-dotfiles/compare/v1.12.0...v1.12.1) (2026-06-22)
 
 

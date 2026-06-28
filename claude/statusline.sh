@@ -1,12 +1,11 @@
 #!/bin/bash
-# Sterngold Status Line — C64 palette (ccstatusline guide, Apr 2026)
+# Sterngold Status Line — bold pride palette (rainbow, Jun 2026)
 # Reads JSON from stdin (Claude Code status line protocol)
 #
-# Palette uses ANSI 256-color indices (rendered via \033[38;5;Nm below).
-# Names match starship.toml family; actual rendered RGB differs from the
-# hex values in starship.toml because that file uses truecolor.
-#   111 primary purple · 153 light blue · 177 emphasis purple
-#   228 warning yellow · 249 light gray · 241 dim gray · 131 terra cotta
+# Palette uses ANSI 256-color indices, all BOLD (rendered via \033[1;38;5;Nm).
+# Pride rainbow: 196 red · 208 orange · 226 yellow · 46 green · 39 blue · 129 violet.
+# Semantic mapping below keeps the info-bar meaning (good/info/warn/critical)
+# while painting it in pride hues; the leading ▰▰▰▰▰▰ is a 6-stripe pride flag.
 
 CACHE_DIR="/tmp/claude-statusline"
 LOG="$CACHE_DIR/error.log"
@@ -18,19 +17,19 @@ export PATH="/usr/local/bin:/Library/Frameworks/Python.framework/Versions/3.12/b
 # Read JSON from stdin
 INPUT=$(cat)
 
-# 256-color codes — C64 palette
-G="\033[38;5;111m"  # primary purple (positive/good state)
-B="\033[38;5;153m"  # light blue (info/branches)
-P="\033[38;5;177m"  # emphasis purple (opus/special)
-Y="\033[38;5;228m"  # C64 warning yellow
-W="\033[38;5;249m"  # C64 secondary gray (default text)
-D="\033[38;5;241m"  # dim gray (separators/dim)
-RED="\033[38;5;131m" # C64 terra cotta (critical)
-R="\033[0m"         # reset
-SEP="${D}▓${R}"
+# 256-color codes — bold pride palette
+G="\033[1;38;5;46m"   # green  — positive/good state
+B="\033[1;38;5;39m"   # blue   — info/branches
+P="\033[1;38;5;129m"  # violet — opus/special
+Y="\033[1;38;5;214m"  # amber  — warning
+W="\033[1;38;5;255m"  # bright white — default text
+D="\033[1;38;5;245m"  # gray   — dim/secondary
+RED="\033[1;38;5;196m" # red    — critical
+R="\033[0m"           # reset
+SEP="\033[1;38;5;129m▏${R}"   # bold violet separator
 
-# Star mark (Sterngold ghost star)
-STAR="${G}★${R}"
+# Pride-flag prefix (6 stripes: red·orange·yellow·green·blue·violet)
+STAR="\033[1;38;5;196m▰\033[1;38;5;208m▰\033[1;38;5;226m▰\033[1;38;5;46m▰\033[1;38;5;39m▰\033[1;38;5;129m▰${R}"
 
 # ── Parse JSON once ────────────────────────────
 PARSED=$(echo "$INPUT" | python3.12 -c "

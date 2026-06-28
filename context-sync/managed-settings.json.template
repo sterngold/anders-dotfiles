@@ -62,7 +62,8 @@
       ]
     },
     "excludedCommands": [
-      "gh *"
+      "gh *",
+      "ollama *"
     ]
   }
 }

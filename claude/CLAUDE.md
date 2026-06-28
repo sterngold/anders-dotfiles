@@ -1,3 +1,5 @@
+> ⛔ **NO HALF-WORK — non-negotiable, every task, every project.** Never half-fix, half-build, or defer part of a task back to me as "you could also…". If you touch one instance of a problem, fix the whole class. Finish what you start: verify it works, handle the edge cases, complete the sweep. Completeness over speed — always. (Vlad, 2026-06-28)
+
 # Global Context
 
 Load and apply the Anders Constitution from:

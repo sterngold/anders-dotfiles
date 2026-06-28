@@ -277,13 +277,36 @@ _cc_worktree_base() {
   printf '%s\n' "$ref"
 }
 
+# For a project that lives inside a git submodule of $repo_root, echo the submodule's
+# path (from .gitmodules) so cc can worktree the SUBMODULE ITSELF (proper git, full
+# checkout, real freshness) instead of populating it inside a linked superproject
+# worktree — the latter inherits the primary checkout's relative core.worktree, so
+# every git call in the inner submodule fails → silent stale-freeze + missing files
+# (the 2026-06-28 cc-Nudge trap). Returns 1 if the subpath isn't inside any submodule.
+_cc_submodule_for_subpath() {
+  local repo_root="$1" subpath="$2" sub
+  [[ -n "$subpath" && -f "$repo_root/.gitmodules" ]] || return 1
+  while IFS= read -r sub; do
+    [[ "$subpath" == "$sub" || "$subpath" == "$sub/"* ]] && { print -r -- "$sub"; return 0; }
+  done < <(git -C "$repo_root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+  return 1
+}
+
 # Fetch one git dir and fast-forward it to its remote default branch when SAFE.
 # Safe = clean tree AND no local commits ahead → ff-only can never lose work. If the
 # dir is behind but dirty/ahead, warn (with the base ref) instead of mutating. Pure
 # safety net against the stale-HEAD trap (a worktree silently sitting behind origin).
 _cc_ff_or_warn() {
   local dir="$1" label="$2" base behind ahead dirty
-  git -C "$dir" fetch -q origin 2>/dev/null || return 0
+  # A BROKEN git dir (e.g. a submodule wrongly populated inside a linked superproject
+  # worktree → inherited core.worktree) fails every git call. Surface it LOUDLY rather
+  # than silently swallowing it (the stale-freeze trap) — never refresh blind.
+  if ! git -C "$dir" rev-parse --git-dir >/dev/null 2>&1; then
+    printf 'cc: ⚠ %s has a BROKEN git dir — content may be STALE, NOT refreshed (run: cc --repair).\n' "$label" >&2
+    return 0
+  fi
+  git -C "$dir" fetch -q origin 2>/dev/null \
+    || { printf 'cc: ⚠ could not fetch %s (offline?) — using local state, may be stale.\n' "$label" >&2; return 0; }
   base=$(_cc_worktree_base "$dir")
   behind=$(git -C "$dir" rev-list --count "HEAD..$base" 2>/dev/null) || return 0
   [[ "${behind:-0}" -gt 0 ]] || return 0
@@ -402,6 +425,25 @@ _cc_launch() {
         repo_root="$root"
         subpath="${target#$root/}"
         [[ "$subpath" == "$target" ]] && subpath=""
+        # Submodule-root projects (Nudge, Momentum, …): worktree the SUBMODULE itself,
+        # not a superproject worktree with the submodule init'd inside (that inherits
+        # the primary checkout's core.worktree → broken git + silent stale-freeze +
+        # missing files). A worktree OF the submodule has normal git, full checkout, and
+        # real freshness off the submodule's own origin/main. Opt out (keep superproject
+        # tooling in-tree, e.g. git-land/closeout) with CC_SUPERPROJECT_WORKTREE=1.
+        local _sub
+        if [[ -z "$CC_SUPERPROJECT_WORKTREE" ]] && _sub=$(_cc_submodule_for_subpath "$root" "$subpath"); then
+          [[ -e "$root/$_sub/.git" ]] || git -C "$root" submodule update --init -- "$_sub" >&2 || true
+          if git -C "$root/$_sub" rev-parse --git-dir >/dev/null 2>&1; then
+            [[ -d "$root/.claude/worktrees/$badge" ]] && \
+              printf 'cc: %s now worktrees the submodule (%s); old superproject tree at %s is unused — remove with: git -C %s worktree remove .claude/worktrees/%s\n' \
+                "$badge" "$_sub" "$root/.claude/worktrees/$badge" "$root" "$badge" >&2
+            repo_root="$root/$_sub"
+            subpath="${subpath#$_sub}"; subpath="${subpath#/}"
+          else
+            printf 'cc: ⚠ submodule %s git not usable — falling back to superproject worktree (may be partial).\n' "$_sub" >&2
+          fi
+        fi
       else
         repo_root=$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)
         if [[ -n "$repo_root" ]]; then

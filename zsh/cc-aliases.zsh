@@ -292,6 +292,49 @@ _cc_submodule_for_subpath() {
   return 1
 }
 
+# ── Submodule linked-worktree config repair ─────────────────────────────────────
+# git stores a submodule's core.worktree in its SHARED config (.git/modules/<n>/config)
+# pointing at the PRIMARY checkout. Every LINKED worktree of that submodule then
+# inherits it and dies with "cannot chdir to ../../../<path>" — so `cc <submodule>`
+# worktrees (and any `git worktree add` of a submodule) silently break. The git-blessed
+# fix: enable extensions.worktreeConfig and move core.worktree into the MAIN worktree's
+# per-worktree config (config.worktree), out of shared. git RE-ADDS it to shared on every
+# `submodule update --init`, so this runs after each init and is safe to repeat (no-op
+# when shared is already clean). 2026-06-29 — the cc-Nudge orphan/broken-worktree class.
+_cc_normalize_submodule_worktree_config() {
+  local primary="$1" gitdir
+  [[ -n "$primary" && -e "$primary/.git" ]] || return 0
+  gitdir=$(git -C "$primary" rev-parse --absolute-git-dir 2>/dev/null) || return 0
+  grep -qE '^[[:space:]]*worktree[[:space:]]*=' "$gitdir/config" 2>/dev/null || return 0  # already clean
+  git -C "$primary" config extensions.worktreeConfig true 2>/dev/null
+  git -C "$primary" config --worktree core.worktree "$primary" 2>/dev/null
+  git -C "$primary" config --unset core.worktree 2>/dev/null
+  git -C "$primary" rev-parse --show-toplevel >/dev/null 2>&1 \
+    || printf 'cc: ⚠ core.worktree normalize may have broken git in %s.\n' "$primary" >&2
+}
+
+# `cc --repair` — repair the submodule linked-worktree trap across the whole workspace:
+# normalize every initialized submodule's core.worktree, then prune stale worktree
+# registrations. Idempotent + safe; run when cc warns about a BROKEN git dir.
+_cc_repair_worktree_configs() {
+  local root="${PROJECTS_ROOT:-$HOME/Code/my-projects}" path
+  [[ -f "$root/.gitmodules" ]] || { printf 'cc --repair: no .gitmodules at %s\n' "$root" >&2; return 0; }
+  # Enumerate submodule paths straight from .gitmodules using ONLY zsh builtins — no
+  # external command (git config --get-regexp / grep / sed all proved flaky inside a
+  # function in some shells), so the repair tool works even in a degraded environment.
+  local -a _lines; local _line
+  _lines=( "${(@f)$(<"$root/.gitmodules")}" )
+  for _line in "${_lines[@]}"; do
+    [[ "$_line" == *path*=* ]] || continue        # the `path = <value>` lines only
+    path="${_line#*=}"; path="${path// /}"; path="${path//$'\t'/}"   # value, whitespace-stripped
+    [[ -n "$path" && -e "$root/$path/.git" ]] || continue
+    _cc_normalize_submodule_worktree_config "$root/$path"
+    printf 'cc --repair: normalized %s\n' "$path" >&2
+  done
+  git -C "$root" worktree prune 2>/dev/null
+  printf 'cc --repair: done — submodule worktree configs normalized, stale worktrees pruned.\n' >&2
+}
+
 # Fetch one git dir and fast-forward it to its remote default branch when SAFE.
 # Safe = clean tree AND no local commits ahead → ff-only can never lose work. If the
 # dir is behind but dirty/ahead, warn (with the base ref) instead of mutating. Pure
@@ -401,6 +444,7 @@ _cc_launch() {
     case "$a" in
       --no-worktree) no_worktree=1 ;;
       --new)         force_new=1 ;;
+      --repair)      _cc_repair_worktree_configs; return 0 ;;
       *)             _args+=("$a") ;;
     esac
   done
@@ -434,6 +478,7 @@ _cc_launch() {
         local _sub
         if [[ -z "$CC_SUPERPROJECT_WORKTREE" ]] && _sub=$(_cc_submodule_for_subpath "$root" "$subpath"); then
           [[ -e "$root/$_sub/.git" ]] || git -C "$root" submodule update --init -- "$_sub" >&2 || true
+          _cc_normalize_submodule_worktree_config "$root/$_sub"   # prevent the linked-worktree core.worktree trap
           if git -C "$root/$_sub" rev-parse --git-dir >/dev/null 2>&1; then
             [[ -d "$root/.claude/worktrees/$badge" ]] && \
               printf 'cc: %s now worktrees the submodule (%s); old superproject tree at %s is unused — remove with: git -C %s worktree remove .claude/worktrees/%s\n' \

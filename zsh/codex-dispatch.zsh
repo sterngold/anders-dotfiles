@@ -54,7 +54,8 @@ Options:
                      single-project build whose brief paths are project-relative.
   --model <m>        codex model
   --sandbox <mode>   read-only | workspace-write | danger-full-access
-  --output <file>    write codex final message here (default: <wt>/.codex-last-message.txt)
+  --output <file>    write codex final message here (default: a file in the excluded
+                     .codex/worktrees/ parent, OUTSIDE the worktree — so it never dirties it)
   --reuse            reuse an existing worktree instead of erroring
   --json             stream codex events as JSONL
   --dry-run          set up the worktree + print the exact codex command, do NOT run codex
@@ -189,7 +190,12 @@ Options:
   [[ -d "$codex_root" ]] || { print -ru2 -- "codex-dispatch: --cwd path does not exist: $codex_root"; return 1; }
 
   # Assemble the codex exec command. -C <codex_root> is the isolated working root.
-  [[ -z "$lastmsg" ]] && lastmsg="$wt_root/.codex-last-message.txt"
+  # Default the -o file OUTSIDE the worktree: a sibling under the git-excluded
+  # .codex/worktrees/ parent. Writing it INSIDE the worktree dirties it with an
+  # untracked file, which trips brief cleanliness guards (`git status` stop rules)
+  # and risks being swept into a build commit. Outside = invisible to both the
+  # worktree's status and the parent repo's status.
+  [[ -z "$lastmsg" ]] && lastmsg="$repo_root/.codex/worktrees/${name}.last-message.txt"
   local -a cmd=(codex exec -C "$codex_root" --full-auto --skip-git-repo-check -o "$lastmsg")
   [[ -n "$model" ]]   && cmd+=(--model "$model")
   [[ -n "$sandbox" ]] && cmd+=(--sandbox "$sandbox")

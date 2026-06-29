@@ -8,6 +8,14 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1](https://github.com/sterngold/anders-dotfiles/compare/v1.15.0...v1.15.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **cc:** move submodule core.worktree to per-worktree config + add cc --repair ([ac677a9](https://github.com/sterngold/anders-dotfiles/commit/ac677a985bba283d6a20a52849990be05ba12c40))
+* **codex:** write codex -o file outside the worktree ([#40](https://github.com/sterngold/anders-dotfiles/issues/40)) ([bbcde03](https://github.com/sterngold/anders-dotfiles/commit/bbcde035c53935959088eae97d12c4f7377fa651))
+
 ## [1.15.0](https://github.com/sterngold/anders-dotfiles/compare/v1.14.1...v1.15.0) (2026-06-29)
 
 

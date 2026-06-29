@@ -47,7 +47,11 @@ Options:
   --submodule <p>    submodule path to init inside the worktree (repeatable),
                      e.g. --submodule 10_AI_OS/Anderson
   --add-dir <d>      extra writable dir for codex outside the worktree (repeatable),
-                     e.g. --add-dir ~/.local/bin
+                     e.g. --add-dir ~/.local/bin  (build-tool caches like ~/.cache/uv too)
+  --cwd <subpath>    codex working root, relative to the worktree (or absolute).
+                     Default: the worktree root (correct for superproject-relative
+                     briefs). Pass e.g. --cwd 20_PRODUCTS/Nudge for a self-contained
+                     single-project build whose brief paths are project-relative.
   --model <m>        codex model
   --sandbox <mode>   read-only | workspace-write | danger-full-access
   --output <file>    write codex final message here (default: <wt>/.codex-last-message.txt)
@@ -56,7 +60,7 @@ Options:
   --dry-run          set up the worktree + print the exact codex command, do NOT run codex
   -h, --help         this help'
 
-  local branch="" model="" sandbox="" lastmsg=""
+  local branch="" model="" sandbox="" lastmsg="" cwd=""
   local dry=0 reuse=0 jsonl=0
   local -a submodules add_dirs
 
@@ -65,6 +69,7 @@ Options:
       --branch)    branch="$2"; shift 2 ;;
       --submodule) submodules+=("$2"); shift 2 ;;
       --add-dir)   add_dirs+=("${2/#\~/$HOME}"); shift 2 ;;
+      --cwd)       cwd="$2"; shift 2 ;;
       --model)     model="$2"; shift 2 ;;
       --sandbox)   sandbox="$2"; shift 2 ;;
       --output)    lastmsg="${2/#\~/$HOME}"; shift 2 ;;
@@ -121,6 +126,20 @@ Options:
   [[ -z "$branch" ]] && branch="wt/${name}-build"
   local wt_root="$repo_root/.codex/worktrees/$name"
 
+  # Keep the .codex worktree container out of the PARENT repo's status — mirror how
+  # .claude/worktrees/ is excluded. Without this, `git status` in the primary checkout
+  # shows .codex/worktrees/ untracked and a stray `git add -A` could stage the nested
+  # worktree as an embedded gitlink, defeating isolation. Idempotent; resolves the real
+  # git dir so it works for submodules too (git-common-dir may be relative/external).
+  local _gitdir
+  _gitdir="$(git -C "$repo_root" rev-parse --git-common-dir 2>/dev/null)" || _gitdir=""
+  if [[ -n "$_gitdir" ]]; then
+    [[ "$_gitdir" != /* ]] && _gitdir="$repo_root/$_gitdir"
+    mkdir -p "$_gitdir/info"
+    grep -qxF '**/.codex/worktrees/' "$_gitdir/info/exclude" 2>/dev/null \
+      || print -r -- '**/.codex/worktrees/' >> "$_gitdir/info/exclude"
+  fi
+
   # Create or reuse the isolated Codex worktree (mirrors _cc_ensure_worktree's add).
   if [[ -d "$wt_root" ]]; then
     if (( ! reuse )); then
@@ -128,7 +147,16 @@ Options:
       print -ru2 -- "  --reuse to use it, or remove: git -C \"$repo_root\" worktree remove \"$wt_root\""
       return 1
     fi
-    print -ru2 -- "codex-dispatch: reusing worktree $wt_root"
+    # On reuse the existing worktree MUST be on the requested branch — otherwise we would
+    # print one branch but run Codex on a different checkout (work lands on the wrong branch).
+    local _cur
+    _cur="$(git -C "$wt_root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    if [[ "$_cur" != "$branch" ]]; then
+      print -ru2 -- "codex-dispatch: reuse refused — worktree is on '$_cur', not requested '$branch'."
+      print -ru2 -- "  switch it: git -C \"$wt_root\" checkout \"$branch\"   (or remove + recreate)"
+      return 1
+    fi
+    print -ru2 -- "codex-dispatch: reusing worktree $wt_root (on $branch)"
   else
     mkdir -p "$repo_root/.codex/worktrees"
     if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
@@ -150,9 +178,19 @@ Options:
     fi
   done
 
-  # Assemble the codex exec command. -C <wt_root> is the isolated working root.
+  # Working root for codex (-C). Default: the worktree root — correct for superproject-
+  # relative briefs (e.g. one that touches a sibling submodule + tools/). For a
+  # self-contained single-project build, pass --cwd <subpath> so the project's own dir is
+  # the root and repo-local instructions/build commands resolve there (Codex review #2).
+  local codex_root="$wt_root"
+  if [[ -n "$cwd" ]]; then
+    [[ "$cwd" == /* ]] && codex_root="$cwd" || codex_root="$wt_root/$cwd"
+  fi
+  [[ -d "$codex_root" ]] || { print -ru2 -- "codex-dispatch: --cwd path does not exist: $codex_root"; return 1; }
+
+  # Assemble the codex exec command. -C <codex_root> is the isolated working root.
   [[ -z "$lastmsg" ]] && lastmsg="$wt_root/.codex-last-message.txt"
-  local -a cmd=(codex exec -C "$wt_root" --full-auto --skip-git-repo-check -o "$lastmsg")
+  local -a cmd=(codex exec -C "$codex_root" --full-auto --skip-git-repo-check -o "$lastmsg")
   [[ -n "$model" ]]   && cmd+=(--model "$model")
   [[ -n "$sandbox" ]] && cmd+=(--sandbox "$sandbox")
   (( jsonl ))         && cmd+=(--json)
@@ -162,10 +200,16 @@ Options:
   print -ru2 -- ""
   print -ru2 -- "codex-dispatch: project    $name  ($target_proj)"
   print -ru2 -- "codex-dispatch: worktree   $wt_root"
+  print -ru2 -- "codex-dispatch: work-root  $codex_root"
   print -ru2 -- "codex-dispatch: branch     $branch"
   print -ru2 -- "codex-dispatch: last-msg   $lastmsg"
   (( ${#submodules} )) && print -ru2 -- "codex-dispatch: submodules ${submodules[*]}"
   (( ${#add_dirs} ))   && print -ru2 -- "codex-dispatch: add-dirs   ${add_dirs[*]}"
+  # Hint: project lives in a subdir but work-root is the worktree root. Fine for
+  # superproject-relative briefs; pass --cwd "$project_subpath" for a project-local build.
+  if [[ -z "$cwd" && -n "$project_subpath" ]]; then
+    print -ru2 -- "codex-dispatch: note       brief paths are relative to the worktree root; for a project-local root pass --cwd $project_subpath"
+  fi
   print -ru2 -- "codex-dispatch: review     git -C \"$wt_root\" status && git -C \"$wt_root\" diff"
   print -ru2 -- ""
 

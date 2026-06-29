@@ -193,6 +193,20 @@ else
   echo "  OK   ~/.zprofile already sources cc-aliases.zsh"
 fi
 
+# codex-dispatch — worktree-isolated headless Codex dispatch. MUST source AFTER
+# cc-aliases.zsh (it reuses _cc_resolve_project / _cc_worktree_base).
+CODEX_DISPATCH_LINE="[[ -f $REPO/zsh/codex-dispatch.zsh ]] && source $REPO/zsh/codex-dispatch.zsh"
+if ! grep -Fq "$REPO/zsh/codex-dispatch.zsh" "$HOME_DIR/.zprofile" 2>/dev/null; then
+  {
+    echo ""
+    echo "# anders-dotfiles: worktree-isolated Codex dispatch (after cc-aliases)"
+    echo "$CODEX_DISPATCH_LINE"
+  } >> "$HOME_DIR/.zprofile"
+  echo "  ADD  codex-dispatch source line in ~/.zprofile"
+else
+  echo "  OK   ~/.zprofile already sources codex-dispatch.zsh"
+fi
+
 # GitHub MCP token — source line added to ~/.zshenv (NOT ~/.zprofile/.zshrc:
 # .zshenv is the only rc sourced by non-interactive `zsh -c` shells too, so the
 # token reaches every zsh context). Exports GITHUB_PERSONAL_ACCESS_TOKEN for

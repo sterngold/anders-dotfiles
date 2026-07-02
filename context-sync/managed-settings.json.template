@@ -63,7 +63,8 @@
     },
     "excludedCommands": [
       "gh *",
-      "ollama *"
+      "ollama *",
+      "ssh *"
     ]
   }
 }

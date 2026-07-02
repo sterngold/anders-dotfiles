@@ -36,6 +36,15 @@ PROJECTS_ROOT="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
 # actually reads on THIS host (per-host, like managed-settings itself). Override for tests.
 ALLOWLIST_SRC="${ANDERS_EGRESS_ALLOWLIST:-$HOME/.claude-full/egress-allowlist.txt}"
 
+# Repo-canonical allowlist (the single source of truth, version-controlled in AndersSecurity).
+# When present and no ANDERS_EGRESS_ALLOWLIST override is in play, install syncs
+# canonical → deployed BEFORE rendering, and --check reports drift between the two (exit 1),
+# so "deployed hook copy differs from repo" can only mean "installer not run".
+REPO_ALLOWLIST="$PROJECTS_ROOT/00_SYSTEM/AndersSecurity/egress/egress-allowlist.txt"
+allowlist_repo_governed() {
+  [[ -z "${ANDERS_EGRESS_ALLOWLIST:-}" && -f "$REPO_ALLOWLIST" ]]
+}
+
 [[ -f "$TEMPLATE" ]] || { echo "install-managed-policy: template not found: $TEMPLATE" >&2; exit 2; }
 
 # Render: literal-token substitution (no envsubst dependency), matching render-mcp.sh, then
@@ -99,6 +108,16 @@ case "${1:-}" in
   *) echo "install-managed-policy: unknown arg '$1' (use --check | --print | no arg)" >&2; exit 2 ;;
 esac
 
+# Install mode: sync the repo-canonical allowlist to the deployed hook copy BEFORE rendering,
+# so the OS floor and the egress-gate hook both derive from the version-controlled source.
+if [[ "$MODE" == "install" ]] && allowlist_repo_governed; then
+  if [[ ! -f "$ALLOWLIST_SRC" ]] || ! diff -q "$REPO_ALLOWLIST" "$ALLOWLIST_SRC" >/dev/null 2>&1; then
+    mkdir -p "$(dirname "$ALLOWLIST_SRC")"
+    cp "$REPO_ALLOWLIST" "$ALLOWLIST_SRC"
+    echo "install-managed-policy: synced egress allowlist canonical → $ALLOWLIST_SRC"
+  fi
+fi
+
 tmp="$(mktemp "${TMPDIR:-/tmp}/managed-settings.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 render > "$tmp"
@@ -113,6 +132,11 @@ if [[ "$MODE" == "check" ]]; then
   if [[ ! -f "$TARGET" ]]; then
     echo "install-managed-policy: NOT DEPLOYED — managed policy absent ($TARGET)" >&2
     exit 3
+  fi
+  if allowlist_repo_governed && { [[ ! -f "$ALLOWLIST_SRC" ]] || ! diff -q "$REPO_ALLOWLIST" "$ALLOWLIST_SRC" >/dev/null 2>&1; }; then
+    echo "install-managed-policy: ALLOWLIST DRIFT — deployed $ALLOWLIST_SRC differs from repo canonical $REPO_ALLOWLIST (run the installer to sync). Diff (deployed vs canonical):" >&2
+    diff "$ALLOWLIST_SRC" "$REPO_ALLOWLIST" >&2 || true
+    exit 1
   fi
   if diff -q "$tmp" "$TARGET" >/dev/null 2>&1; then
     echo "install-managed-policy: in sync — $TARGET matches canonical"

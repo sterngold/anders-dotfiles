@@ -98,10 +98,13 @@ try:
     # Model ID (for extended context detection)
     print(m.get('id', ''))
 
+    # Session ID (for the registered-session mark)
+    print(d.get('session_id', ''))
+
 except Exception as e:
     with open(LOG, 'a') as f:
         f.write(f'{e}\n')
-    for _ in range(10):
+    for _ in range(11):
         print('?')
 " 2>>"$LOG")
 
@@ -114,6 +117,7 @@ LINES_CHANGED=$(echo "$PARSED" | sed -n '7p')
 OUTPUT_STYLE=$(echo "$PARSED" | sed -n '8p')
 WORKTREE=$(echo "$PARSED" | sed -n '9p')
 MODEL_ID=$(echo "$PARSED" | sed -n '10p')
+SESSION_ID=$(echo "$PARSED" | sed -n '11p')
 
 # Fallback for parse failures
 CTX_PCT="${CTX_PCT:-0}"; CTX_TOKENS="${CTX_TOKENS:-0}"; SESSION_SECS="${SESSION_SECS:-0}"
@@ -137,11 +141,23 @@ if [ -n "$OUTPUT_STYLE" ] && [ "$OUTPUT_STYLE" != "default" ]; then
   M_SHORT="${M_SHORT} ${D}[${W}${OUTPUT_STYLE}${D}]${R}"
 fi
 
+# Registered-session mark (slim session-identity layer, 2026-07-02):
+# ✓ = this session has a record in ~/.local/state/anders-sessions (session-register.sh
+# ran at SessionStart — a registered/whitelisted session); ? = no record (hook didn't fire).
+SESS_MARK=""
+if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "?" ]; then
+  if [ -f "$HOME/.local/state/anders-sessions/$SESSION_ID.json" ]; then
+    SESS_MARK="✓"
+  else
+    SESS_MARK="?"
+  fi
+fi
+
 # Mode indicator (CLAUDE_CONFIG_DIR-based) — also captured for OSC 1337 emission below
 case "${CLAUDE_CONFIG_DIR:-}" in
-  *full*)    CC_MODE="FULL"    ; M_SHORT="${M_SHORT} ${G}[FULL]${R}" ;;
-  *build*)   CC_MODE="BUILD"   ; M_SHORT="${M_SHORT} ${B}[BUILD]${R}" ;;
-  *partner*) CC_MODE="PARTNER" ; M_SHORT="${M_SHORT} ${P}[PARTNER]${R}" ;;
+  *full*)    CC_MODE="FULL"    ; M_SHORT="${M_SHORT} ${G}[FULL${SESS_MARK}]${R}" ;;
+  *build*)   CC_MODE="BUILD"   ; M_SHORT="${M_SHORT} ${B}[BUILD${SESS_MARK}]${R}" ;;
+  *partner*) CC_MODE="PARTNER" ; M_SHORT="${M_SHORT} ${P}[PARTNER${SESS_MARK}]${R}" ;;
   *)         CC_MODE="" ;;
 esac
 

@@ -96,7 +96,7 @@
           },
           {
             "type": "command",
-            "command": "bash /Users/sterngold/Code/my-projects/00_SYSTEM/anders-config/tools/session-init.sh > /dev/null"
+            "command": "bash ${PROJECTS_ROOT}/00_SYSTEM/anders-config/tools/session-register.sh"
           }
         ]
       }
@@ -108,6 +108,14 @@
           {
             "type": "command",
             "command": "if echo \"$CLAUDE_TOOL_INPUT\" | grep -q 'rsync.*--delete'; then echo 'BLOCKED: rsync --delete is hard-blocked. Use rsync without --delete, or manage deletions manually.' && exit 1; fi"
+          },
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/00_SYSTEM/anders-config/.claude/hooks/guard-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-deploy.sh"
           }
         ]
       },
@@ -117,6 +125,33 @@
           {
             "type": "command",
             "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-sensitive-paths.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-memory-acl.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-new-hook-audit.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude-full/egress-gate.sh"
           }
         ]
       },
@@ -164,6 +199,28 @@
           {
             "type": "command",
             "command": "bash ${PROJECTS_ROOT}/.claude/hooks/validate-file.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/format-python.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-memory-budget.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude-full/egress-log.sh"
           }
         ]
       }
@@ -174,6 +231,16 @@
           {
             "type": "command",
             "command": "PROMPT=$(echo \"$CLAUDE_USER_PROMPT\" | tr '[:upper:]' '[:lower:]'); case \"$PROMPT\" in */effort\\ ultra*|*ultrathink*) echo ultra > /tmp/claude-statusline/thinking;; */effort\\ high*) echo high > /tmp/claude-statusline/thinking;; */effort\\ low*|*/effort\\ min*) echo low > /tmp/claude-statusline/thinking;; */effort*) echo auto > /tmp/claude-statusline/thinking;; esac"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/stop-gate.sh"
           }
         ]
       }

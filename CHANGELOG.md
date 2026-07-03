@@ -8,6 +8,19 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0](https://github.com/sterngold/anders-dotfiles/compare/v1.15.1...v1.16.0) (2026-07-03)
+
+
+### Features
+
+* **policy:** exclude ssh from the sandbox on all machines ([c5ee718](https://github.com/sterngold/anders-dotfiles/commit/c5ee718e4c6c5ccb29f784153be155dbdd71a832))
+* **policy:** whitelisted-sessions hardening — allowlist single-source + hook parity + session badge ([a39562a](https://github.com/sterngold/anders-dotfiles/commit/a39562a523513e27890be92d9d896e85e2f99954))
+
+
+### Bug Fixes
+
+* **AND-1680:** guard codex-dispatch dirty sources ([#43](https://github.com/sterngold/anders-dotfiles/issues/43)) ([3ecf538](https://github.com/sterngold/anders-dotfiles/commit/3ecf5383cb57d60abeba7e95e0ca5a0d3c82ebbc))
+
 ## [1.15.1](https://github.com/sterngold/anders-dotfiles/compare/v1.15.0...v1.15.1) (2026-06-29)
 
 

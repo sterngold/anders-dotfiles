@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0](https://github.com/sterngold/anders-dotfiles/compare/v1.16.0...v1.17.0) (2026-07-03)
+
+
+### Features
+
+* **sandbox:** exclude anders-build from the seatbelt so ralph's nested claude escapes (AND-1749) ([c112f84](https://github.com/sterngold/anders-dotfiles/commit/c112f840d34385fcae0a3bcbd600629db6d3ba7e))
+
 ## [1.16.0](https://github.com/sterngold/anders-dotfiles/compare/v1.15.1...v1.16.0) (2026-07-03)
 
 

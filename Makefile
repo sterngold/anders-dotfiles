@@ -18,6 +18,7 @@ test: ## Run tests
 	@if [ -f pyproject.toml ];  then uv run pytest -q; fi
 	@if [ -f package.json ];    then npm test --if-present; fi
 	@if [ -f Package.swift ];   then swift test; fi
+	@for t in tests/test_*.sh; do [ -e "$$t" ] || continue; bash "$$t"; done
 
 lint: ## Lint + typecheck
 	@if [ -f pyproject.toml ];  then uv run ruff check . && uv run ruff format --check .; fi

@@ -14,8 +14,9 @@
 #
 # WHAT it does:
 #   Resolves <project>, creates/reuses an ISOLATED worktree at
-#   <repo>/.codex/worktrees/<name>/ on a WORK-named branch (default wt/<name>-build,
-#   or --branch pipeline/<issue>-build), auto-inits any --submodule it needs, then runs
+#   <repo>/.codex/worktrees/<name>/ on a WORK-named branch (ad-hoc default:
+#   wt/<name>-build; Link builds pass --branch pipeline/<issue>-build), auto-inits
+#   any --submodule it needs, then runs
 #   `codex exec -C <worktree> --full-auto` with the brief piped on stdin. Codex never
 #   touches the primary checkout or the .claude/worktrees/ a live Claude session owns.
 #
@@ -43,7 +44,8 @@ Dispatch Codex headlessly in an isolated .codex/worktrees/<project> worktree.
   <brief-file|->   path to the brief, or - to read the brief from stdin
 
 Options:
-  --branch <ref>     worktree branch (default: wt/<name>-build)
+  --branch <ref>     worktree branch (ad-hoc default: wt/<name>-build;
+                     Link builds use pipeline/<ISSUE>-build)
   --submodule <p>    submodule path to init inside the worktree (repeatable),
                      e.g. --submodule 10_AI_OS/Anderson
   --add-dir <d>      extra writable dir for codex outside the worktree (repeatable),
@@ -57,12 +59,14 @@ Options:
   --output <file>    write codex final message here (default: a file in the excluded
                      .codex/worktrees/ parent, OUTSIDE the worktree — so it never dirties it)
   --reuse            reuse an existing worktree instead of erroring
+  --allow-dirty-source
+                     allow dispatch from a source checkout with uncommitted changes
   --json             stream codex events as JSONL
   --dry-run          set up the worktree + print the exact codex command, do NOT run codex
   -h, --help         this help'
 
   local branch="" model="" sandbox="" lastmsg="" cwd=""
-  local dry=0 reuse=0 jsonl=0
+  local dry=0 reuse=0 jsonl=0 allow_dirty_source=0
   local -a submodules add_dirs
 
   while [[ "$1" == -* ]]; do
@@ -75,6 +79,7 @@ Options:
       --sandbox)   sandbox="$2"; shift 2 ;;
       --output)    lastmsg="${2/#\~/$HOME}"; shift 2 ;;
       --reuse)     reuse=1; shift ;;
+      --allow-dirty-source) allow_dirty_source=1; shift ;;
       --json)      jsonl=1; shift ;;
       --dry-run)   dry=1; shift ;;
       -h|--help)   print -r -- "$usage"; return 0 ;;
@@ -139,6 +144,24 @@ Options:
     mkdir -p "$_gitdir/info"
     grep -qxF '**/.codex/worktrees/' "$_gitdir/info/exclude" 2>/dev/null \
       || print -r -- '**/.codex/worktrees/' >> "$_gitdir/info/exclude"
+  fi
+
+  # codex-dispatch creates the isolated worktree from committed state. If the source
+  # checkout is dirty, a brief authored from what the human/Claude can see may name bytes
+  # that the Codex worktree cannot contain. Refuse by default; allow an explicit escape
+  # only when the orchestrator has verified the dirty state is irrelevant.
+  local -a dirty_cmd=(git -C "$repo_root" status --porcelain --untracked-files=all --)
+  [[ -n "$project_subpath" ]] && dirty_cmd+=("$project_subpath")
+  local dirty_source
+  dirty_source="$("${dirty_cmd[@]}")" || return 1
+  if [[ -n "$dirty_source" ]]; then
+    if (( ! allow_dirty_source )); then
+      print -ru2 -- "codex-dispatch: source checkout has uncommitted changes that the isolated worktree will not contain."
+      print -ru2 -- "  commit/stash them first, or pass --allow-dirty-source after verifying the brief only references committed state."
+      print -ru2 -- "$dirty_source"
+      return 1
+    fi
+    print -ru2 -- "codex-dispatch: warning: source checkout is dirty; proceeding because --allow-dirty-source was set."
   fi
 
   # Create or reuse the isolated Codex worktree (mirrors _cc_ensure_worktree's add).

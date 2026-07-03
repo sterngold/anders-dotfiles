@@ -64,7 +64,8 @@
     "excludedCommands": [
       "gh *",
       "ollama *",
-      "ssh *"
+      "ssh *",
+      "anders-build *"
     ]
   }
 }

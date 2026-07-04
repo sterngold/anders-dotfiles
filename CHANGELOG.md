@@ -8,6 +8,14 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.1](https://github.com/sterngold/anders-dotfiles/compare/v1.17.0...v1.17.1) (2026-07-04)
+
+
+### Bug Fixes
+
+* document aggregate ci gate ([50c0cae](https://github.com/sterngold/anders-dotfiles/commit/50c0cae0808524cd757a22e886ebb0d116dc62c2))
+* document aggregate ci gate ([#45](https://github.com/sterngold/anders-dotfiles/issues/45)) ([50c0cae](https://github.com/sterngold/anders-dotfiles/commit/50c0cae0808524cd757a22e886ebb0d116dc62c2))
+
 ## [1.17.0](https://github.com/sterngold/anders-dotfiles/compare/v1.16.0...v1.17.0) (2026-07-03)
 
 

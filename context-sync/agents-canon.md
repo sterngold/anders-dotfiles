@@ -76,7 +76,7 @@ Co-authored-by: Claude <noreply@anthropic.com>
 - PR title MUST follow Conventional Commits (CI enforces).
 - PR description MUST fill the template (`.github/pull_request_template.md`).
 - **Squash-merge only.** Linear history required.
-- Required passing check: `ci` — the aggregate job in `.github/workflows/ci.yml` that gates commit convention, secret scan, Python, Node, and bash-suite checks. It runs `if: always()`, so it reports and can go green even when an upstream language-specific job legitimately skips.
+- Required passing check: `ci` — the aggregate job in `.github/workflows/ci.yml` that gates commit convention, secret scan, and any repo-specific blocking backstops. Python/Node lint+test jobs may be advisory when configured with `continue-on-error: true`; skipped stack-conditional jobs are allowed, and making them blocking requires changing the workflow first.
 - Solo flow: 0 required human reviewers. CodeRabbit / Copilot Review = required reviewer.
 
 ---

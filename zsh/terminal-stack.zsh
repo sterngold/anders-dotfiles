@@ -50,8 +50,13 @@ if command -v yazi >/dev/null; then
   }
 fi
 
-# eza — ls replacements (interactive aliases only; scripts and `command ls` bypass them)
-if command -v eza >/dev/null; then
+# eza — ls replacements. INTERACTIVE SHELLS ONLY (the `[[ -o interactive ]]` guard is
+# load-bearing — do NOT remove). eza's flags are NOT POSIX-ls-compatible: `-t` selects a
+# time FIELD (needs a value) instead of sorting by mtime, so a leaked `ls -t <dir>` returns
+# empty with exit 0 — a silent wrong result. Non-interactive/agent shells (Claude Code's
+# Bash tool sets CLAUDECODE=1; `[[ -o interactive ]]` is false there) must keep real `ls`.
+# 2026-07-01: this leaked and produced a false "no plan file on disk" claim in /resume.
+if [[ -o interactive ]] && command -v eza >/dev/null; then
   alias ls='eza --icons=auto --group-directories-first'
   alias ll='eza -lah --icons=auto --group-directories-first --git --time-style=long-iso'
   alias la='eza -a --icons=auto --group-directories-first'

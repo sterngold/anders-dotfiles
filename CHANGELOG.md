@@ -8,6 +8,20 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.1](https://github.com/sterngold/anders-dotfiles/compare/v1.18.0...v1.18.1) (2026-07-05)
+
+
+### Bug Fixes
+
+* **context-sync:** honest ci-gate canon wording + drift guards ([#50](https://github.com/sterngold/anders-dotfiles/issues/50)) ([434eeab](https://github.com/sterngold/anders-dotfiles/commit/434eeabd5320e53c63366d99137de30fb4803a5d))
+
+## [1.18.0](https://github.com/sterngold/anders-dotfiles/compare/v1.17.1...v1.18.0) (2026-07-05)
+
+
+### Features
+
+* **AND-1773:** codex-dispatch dep provisioning + stale-reuse heal ([#47](https://github.com/sterngold/anders-dotfiles/issues/47)) ([3530235](https://github.com/sterngold/anders-dotfiles/commit/35302354f8e6ac02739ebb0def52a4f2ca68d027))
+
 ## [1.17.1](https://github.com/sterngold/anders-dotfiles/compare/v1.17.0...v1.17.1) (2026-07-04)
 
 

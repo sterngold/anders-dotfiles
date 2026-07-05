@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.2](https://github.com/sterngold/anders-dotfiles/compare/v1.18.1...v1.18.2) (2026-07-05)
+
+
+### Bug Fixes
+
+* **zsh:** gate eza ls aliases behind interactive-shell check ([#52](https://github.com/sterngold/anders-dotfiles/issues/52)) ([5a171b3](https://github.com/sterngold/anders-dotfiles/commit/5a171b371762f022b3f3241f02b24f3e5793d45e))
+
 ## [1.18.1](https://github.com/sterngold/anders-dotfiles/compare/v1.18.0...v1.18.1) (2026-07-05)
 
 

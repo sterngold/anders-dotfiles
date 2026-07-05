@@ -201,17 +201,27 @@ Options:
       fi
       local base
       base="$(_cc_worktree_base "$repo_root")"
+      # An EXISTING requested branch is preserved (plain switch — it may carry prior
+      # build commits; resetting it to base would drop the tip). Only a branch that
+      # doesn't exist yet is created off base — mirroring the create path below.
+      local _heal_verb="switch to existing"
+      git -C "$wt_root" show-ref --verify --quiet "refs/heads/$branch" || _heal_verb="create off $base"
       if (( dry )); then
-        print -ru2 -- "codex-dispatch: DRY RUN — would auto-heal stale container: currently on '$_cur' (clean), would fetch origin + switch to '$branch' @ $base"
+        print -ru2 -- "codex-dispatch: DRY RUN — would auto-heal stale container: currently on '$_cur' (clean), would fetch origin + $_heal_verb '$branch'"
       else
-        print -ru2 -- "codex-dispatch: worktree is on stale branch '$_cur' (clean) — auto-healing to '$branch'"
+        print -ru2 -- "codex-dispatch: worktree is on stale branch '$_cur' (clean) — auto-healing to '$branch' ($_heal_verb)"
         local _fetch_err
         if ! _fetch_err="$(git -C "$wt_root" fetch origin --quiet 2>&1)"; then
           print -ru2 -- "codex-dispatch: warning: git fetch origin failed in $wt_root (continuing with local refs): $_fetch_err"
         fi
-        git -C "$wt_root" switch -C "$branch" "$base" >&2 \
-          || { print -ru2 -- "codex-dispatch: auto-heal failed — could not switch \"$wt_root\" to '$branch' @ $base"; return 1; }
-        print -ru2 -- "codex-dispatch: auto-healed stale container: was on '$_cur', now '$branch' @ $base"
+        if git -C "$wt_root" show-ref --verify --quiet "refs/heads/$branch"; then
+          git -C "$wt_root" switch "$branch" >&2 \
+            || { print -ru2 -- "codex-dispatch: auto-heal failed — could not switch \"$wt_root\" to existing '$branch'"; return 1; }
+        else
+          git -C "$wt_root" switch -c "$branch" "$base" >&2 \
+            || { print -ru2 -- "codex-dispatch: auto-heal failed — could not create '$branch' @ $base in \"$wt_root\""; return 1; }
+        fi
+        print -ru2 -- "codex-dispatch: auto-healed stale container: was on '$_cur', now '$branch'"
       fi
     else
       print -ru2 -- "codex-dispatch: reusing worktree $wt_root (on $branch)"

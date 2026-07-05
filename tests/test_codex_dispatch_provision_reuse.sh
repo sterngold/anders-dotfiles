@@ -102,6 +102,36 @@ final_branch="$(git -C "$CONTAINER" rev-parse --abbrev-ref HEAD 2>/dev/null || t
 check "reuse + clean stale container auto-heals to the requested branch" "$t1_ok"
 
 # ============================================================================
+# Test 1b: heal must PRESERVE an existing requested branch's tip (PR #47 P1) —
+# switching to a pre-existing branch with prior build commits must not reset it.
+# ============================================================================
+setup_stale_container "stale-clean-2" 0
+# Pre-create the requested branch with one extra commit beyond base.
+git -C "$CONTAINER" switch -q -c keep-my-tip
+printf 'prior build work\n' > "$CONTAINER/built.txt"
+git -C "$CONTAINER" add built.txt
+git -C "$CONTAINER" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm "prior build commit"
+TIP_BEFORE="$(git -C "$CONTAINER" rev-parse keep-my-tip)"
+git -C "$CONTAINER" switch -q stale-clean-2   # container back on the stale branch
+export TIP_BEFORE
+set +e
+zsh -f <<'ZSH' >"$OUT" 2>"$ERR"
+source "$ROOT_DIR/zsh/codex-dispatch.zsh"
+_cc_resolve_project() { print -r -- "$1/Foo"; }
+_cc_worktree_base() { git -C "$1" rev-parse HEAD; }
+codex-dispatch --skip-deps --reuse --branch keep-my-tip Foo "$BRIEF"
+ZSH
+rc=$?
+set -e
+t1b_ok=0
+[[ "$rc" -eq 0 ]] || t1b_ok=1
+final_branch="$(git -C "$CONTAINER" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+[[ "$final_branch" == "keep-my-tip" ]] || t1b_ok=1
+TIP_AFTER="$(git -C "$CONTAINER" rev-parse keep-my-tip)"
+[[ "$TIP_AFTER" == "$TIP_BEFORE" ]] || t1b_ok=1
+check "heal preserves an existing requested branch's tip (no reset to base)" "$t1b_ok"
+
+# ============================================================================
 # Test 2: reuse + DIRTY stale container -> refuses, names the remedy, nothing lost
 # ============================================================================
 setup_stale_container "stale-dirty" 1

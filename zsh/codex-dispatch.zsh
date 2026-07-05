@@ -31,6 +31,13 @@
 #     commit (the Codex one-shot-brief contract: human reviews before the build lands).
 #   - Brief is piped on stdin (codex reads instructions from stdin when no PROMPT arg),
 #     avoiding arg-length and shell-quoting hazards with large briefs.
+#   - Provisions the ONE obviously-missing dep (npm ci when a lockfile is present and
+#     node_modules is missing) before assembling the codex command, so a fresh worktree
+#     doesn't burn a Codex round-trip hard-stopping on missing deps (AND-1773 C).
+#     --skip-deps opts out. Python gets a warn-only venv check — never auto-created.
+#   - A stale --reuse container (left on a prior ticket's branch) auto-heals onto the
+#     requested branch when clean (fetch + switch -C); a dirty container still refuses,
+#     naming the exact remedy (AND-1773 D).
 
 codex-dispatch() {
   emulate -L zsh
@@ -63,10 +70,11 @@ Options:
                      allow dispatch from a source checkout with uncommitted changes
   --json             stream codex events as JSONL
   --dry-run          set up the worktree + print the exact codex command, do NOT run codex
+  --skip-deps        skip dependency provisioning (npm ci / python venv check)
   -h, --help         this help'
 
   local branch="" model="" sandbox="" lastmsg="" cwd=""
-  local dry=0 reuse=0 jsonl=0 allow_dirty_source=0
+  local dry=0 reuse=0 jsonl=0 allow_dirty_source=0 skip_deps=0
   local -a submodules add_dirs
 
   while [[ "$1" == -* ]]; do
@@ -82,6 +90,7 @@ Options:
       --allow-dirty-source) allow_dirty_source=1; shift ;;
       --json)      jsonl=1; shift ;;
       --dry-run)   dry=1; shift ;;
+      --skip-deps) skip_deps=1; shift ;;
       -h|--help)   print -r -- "$usage"; return 0 ;;
       *)           print -ru2 -- "codex-dispatch: unknown flag: $1"; print -ru2 -- "$usage"; return 2 ;;
     esac
@@ -172,15 +181,41 @@ Options:
       return 1
     fi
     # On reuse the existing worktree MUST be on the requested branch — otherwise we would
-    # print one branch but run Codex on a different checkout (work lands on the wrong branch).
+    # print one branch but run Codex on a different checkout (work lands on the wrong
+    # branch). A stale container (left on a PRIOR ticket's branch, AND-1773 D) is common
+    # enough that refusing outright is needless friction when the container is CLEAN:
+    # auto-heal it onto the requested branch, same as the create path (fetch + branch off
+    # _cc_worktree_base). A DIRTY container is never auto-healed — that would risk
+    # discarding uncommitted work, so it still refuses, naming the exact remedy.
     local _cur
     _cur="$(git -C "$wt_root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
     if [[ "$_cur" != "$branch" ]]; then
-      print -ru2 -- "codex-dispatch: reuse refused — worktree is on '$_cur', not requested '$branch'."
-      print -ru2 -- "  switch it: git -C \"$wt_root\" checkout \"$branch\"   (or remove + recreate)"
-      return 1
+      local _dirty_container
+      _dirty_container="$(git -C "$wt_root" status --porcelain)"
+      if [[ -n "$_dirty_container" ]]; then
+        print -ru2 -- "codex-dispatch: reuse refused — worktree is on '$_cur', not requested '$branch', and has uncommitted changes."
+        print -ru2 -- "  inspect it first: git -C \"$wt_root\" status && git -C \"$wt_root\" diff"
+        print -ru2 -- "  then either commit/stash the changes and switch: git -C \"$wt_root\" checkout \"$branch\""
+        print -ru2 -- "  or remove the container entirely: git -C \"$repo_root\" worktree remove \"$wt_root\""
+        return 1
+      fi
+      local base
+      base="$(_cc_worktree_base "$repo_root")"
+      if (( dry )); then
+        print -ru2 -- "codex-dispatch: DRY RUN — would auto-heal stale container: currently on '$_cur' (clean), would fetch origin + switch to '$branch' @ $base"
+      else
+        print -ru2 -- "codex-dispatch: worktree is on stale branch '$_cur' (clean) — auto-healing to '$branch'"
+        local _fetch_err
+        if ! _fetch_err="$(git -C "$wt_root" fetch origin --quiet 2>&1)"; then
+          print -ru2 -- "codex-dispatch: warning: git fetch origin failed in $wt_root (continuing with local refs): $_fetch_err"
+        fi
+        git -C "$wt_root" switch -C "$branch" "$base" >&2 \
+          || { print -ru2 -- "codex-dispatch: auto-heal failed — could not switch \"$wt_root\" to '$branch' @ $base"; return 1; }
+        print -ru2 -- "codex-dispatch: auto-healed stale container: was on '$_cur', now '$branch' @ $base"
+      fi
+    else
+      print -ru2 -- "codex-dispatch: reusing worktree $wt_root (on $branch)"
     fi
-    print -ru2 -- "codex-dispatch: reusing worktree $wt_root (on $branch)"
   else
     mkdir -p "$repo_root/.codex/worktrees"
     if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
@@ -211,6 +246,44 @@ Options:
     [[ "$cwd" == /* ]] && codex_root="$cwd" || codex_root="$wt_root/$cwd"
   fi
   [[ -d "$codex_root" ]] || { print -ru2 -- "codex-dispatch: --cwd path does not exist: $codex_root"; return 1; }
+
+  # Dependency provisioning (AND-1773 C): a fresh isolated worktree has no node_modules
+  # even when the source checkout does — npm's install artifacts live in the working
+  # tree, not in git. The AND-1770 dispatch burned a full Codex round-trip on a
+  # hard-stopped verify.sh (missing root node_modules). Provision the ONE obviously-
+  # missing dep so the brief's own build steps can assume it's there; this is not a
+  # general build system, and it never creates Python venvs.
+  if (( ! skip_deps )); then
+    local prov_root=""
+    if [[ -f "$codex_root/package-lock.json" ]]; then
+      prov_root="$codex_root"
+    elif [[ -f "$wt_root/package-lock.json" ]]; then
+      prov_root="$wt_root"
+    fi
+    if [[ -n "$prov_root" && ! -d "$prov_root/node_modules" ]]; then
+      if (( dry )); then
+        print -ru2 -- "[codex-dispatch] would run: npm ci (--no-audit --no-fund) in $prov_root"
+      else
+        print -ru2 -- "codex-dispatch: node_modules missing at $prov_root — provisioning: npm ci --no-audit --no-fund"
+        if ! ( cd "$prov_root" && npm ci --no-audit --no-fund >&2 ); then
+          print -ru2 -- "codex-dispatch: WARNING: npm ci failed in $prov_root — continuing; the build's own verify step will surface the missing deps."
+        fi
+      fi
+    fi
+
+    # Python: same codex_root-then-wt_root resolution order, but resolved independently
+    # of the node lockfile check above — a python-only project (no package-lock.json
+    # anywhere) must still get the venv warning.
+    local py_root=""
+    if [[ -f "$codex_root/pyproject.toml" || -f "$codex_root/requirements.txt" ]]; then
+      py_root="$codex_root"
+    elif [[ -f "$wt_root/pyproject.toml" || -f "$wt_root/requirements.txt" ]]; then
+      py_root="$wt_root"
+    fi
+    if [[ -n "$py_root" && ! -d "$py_root/.venv" && ! -d "$py_root/venv" ]]; then
+      print -ru2 -- "codex-dispatch: warning: no venv in fresh worktree at $py_root — ensure the brief's Kitchen Check provisions it"
+    fi
+  fi
 
   # Assemble the codex exec command. -C <codex_root> is the isolated working root.
   # Default the -o file OUTSIDE the worktree: a sibling under the git-excluded

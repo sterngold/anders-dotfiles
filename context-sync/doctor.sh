@@ -13,7 +13,10 @@
 #   13  ~/Vaults referenced by a router but absent on this host
 #   14  rendered .mcp.json missing (workspace present but never rendered)
 #   15  canonical AGENTS.md missing while workspace present, OR CLAUDE.md is not a
-#       thin pointer (missing column-0 `@AGENTS.md` import) — thin-pointer model
+#       thin pointer (missing column-0 `@AGENTS.md` import) — thin-pointer model —
+#       OR an AGENTS.md-canonical repo has drifted from agents-canon.md
+#       (assemble-sweep.sh reports STALE/ERROR) — OR the primary checkout
+#       (PROJECTS_ROOT) has drifted materially from origin/main
 #   16  (reserved — was render-claude.sh error; unused under the thin-pointer model)
 #   17  cc(1) project-resolver invariant breach — an active project does not resolve
 #       uniquely via `cc <name>` (name collision or unreachable; see zsh/cc-doctor.zsh)
@@ -186,6 +189,60 @@ if [[ -d "$PROJECTS_ROOT" ]]; then
   fi
 else
   note_ok "no workspace on this host — context check not required"
+fi
+
+# --- 15 (cont.): AGENTS.md-canon drift sweep --------------------------------
+# assemble-sweep.sh (context-sync/) walks the fixed roster of AGENTS.md-canonical
+# repos (AGENTS-CANON-STATUS.md "done" table) and reports PASS/STALE/ERROR/MISSING
+# per repo, non-mutating. A STALE/ERROR repo means agents-canon.md moved but that
+# repo's AGENTS.md was never re-assembled — same failure family as the check above
+# (canonical-source drift), so it shares code 15. MISSING repos are informational
+# only (this host doesn't have that checkout) and never fail the section.
+SWEEP="$SCRIPT_DIR/assemble-sweep.sh"
+if [[ -f "$SWEEP" ]]; then
+  sweep_out="$(bash "$SWEEP" 2>&1)"; sweep_rc=$?
+  drifted="$(printf '%s\n' "$sweep_out" | grep -E '^(STALE|ERROR) ' | sed -E 's/^(STALE|ERROR) //' || true)"
+  if [[ "$sweep_rc" -ne 0 ]]; then
+    if [[ -n "$drifted" ]]; then
+      note_fail 15 "AGENTS.md canon drift — $(printf '%s' "$drifted" | paste -sd';' -) — run: bash $SWEEP"
+    else
+      note_fail 15 "assemble-sweep.sh exited $sweep_rc with no STALE/ERROR lines — inspect output"
+    fi
+    (( JSON_MODE )) || printf '%s\n' "$sweep_out" | sed 's/^/      /'
+  else
+    note_ok "AGENTS.md canon in sync across every present repo (assemble-sweep.sh)"
+  fi
+else
+  note_fail 15 "assemble-sweep.sh missing at $SWEEP"
+fi
+
+# --- 15 (cont.): primary-checkout hygiene ------------------------------------
+# The primary checkout (PROJECTS_ROOT) is contested shared state (git-minimal.md)
+# — it should stay close to origin/main and reasonably clean. Drift here is a
+# leading indicator of stranded/unpushed work or a session that never landed.
+# Best-effort `fetch --quiet` with a short timeout when available; offline or a
+# failed fetch is NOT a failure — skip silently, same convention as the cc-resolve
+# check above skipping cleanly without zsh.
+if [[ -d "$PROJECTS_ROOT/.git" ]]; then
+  fetch_ok=1
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 10 git -C "$PROJECTS_ROOT" fetch --quiet origin main >/dev/null 2>&1 || fetch_ok=0
+  else
+    git -C "$PROJECTS_ROOT" fetch --quiet origin main >/dev/null 2>&1 || fetch_ok=0
+  fi
+  if [[ "$fetch_ok" -eq 1 ]]; then
+    behind="$(git -C "$PROJECTS_ROOT" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+    dirty="$(git -C "$PROJECTS_ROOT" status --porcelain 2>/dev/null | grep -vc '^??' || true)"
+    if [[ "$behind" -gt 3 || "$dirty" -gt 10 ]]; then
+      note_fail 15 "primary checkout ($PROJECTS_ROOT) drifted — $behind commit(s) behind origin/main, $dirty dirty tracked file(s); back up first (stash: 'git stash push -u', or a backup branch — see rules/git-minimal.md) before any reset/checkout"
+    else
+      note_ok "primary checkout in sync ($behind behind origin/main, $dirty dirty tracked files)"
+    fi
+  else
+    note_ok "primary-checkout drift check skipped (offline or fetch failed)"
+  fi
+else
+  note_ok "no primary checkout .git at $PROJECTS_ROOT — hygiene check not required"
 fi
 
 # --- 17: cc(1) project-resolver invariants ----------------------------------

@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.3](https://github.com/sterngold/anders-dotfiles/compare/v1.18.2...v1.18.3) (2026-07-10)
+
+
+### Bug Fixes
+
+* honor PROJECTS_ROOT in assemble sweep ([#54](https://github.com/sterngold/anders-dotfiles/issues/54)) ([1f6e423](https://github.com/sterngold/anders-dotfiles/commit/1f6e423bb1a56e36a1af7fac3725a3d1f8bdecc1))
+
 ## [1.18.2](https://github.com/sterngold/anders-dotfiles/compare/v1.18.1...v1.18.2) (2026-07-05)
 
 

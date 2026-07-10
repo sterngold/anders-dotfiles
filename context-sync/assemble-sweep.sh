@@ -19,6 +19,7 @@ set -uo pipefail   # NOT -e: one repo's non-zero --check must not kill the loop.
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSEMBLE="$SELF_DIR/assemble-agents.sh"
+PROJECTS_ROOT="${PROJECTS_ROOT:-$HOME/Code/my-projects}"
 
 if [[ ! -f "$ASSEMBLE" ]]; then
   echo "assemble-sweep: ERROR — assemble-agents.sh not found at $ASSEMBLE" >&2
@@ -28,16 +29,16 @@ fi
 # Fixed roster — from AGENTS-CANON-STATUS.md's "done" table. my-projects root
 # is the documented intentional exception; never add it here.
 REPOS=(
-  "$HOME/Code/my-projects/00_SYSTEM/anders-config"
+  "$PROJECTS_ROOT/00_SYSTEM/anders-config"
   "$HOME/anders-dotfiles"
-  "$HOME/Code/my-projects/10_AI_OS/AndersMem"
-  "$HOME/Code/my-projects/20_PRODUCTS/FoodLog"
-  "$HOME/Code/my-projects/10_AI_OS/Anderson"
-  "$HOME/Code/my-projects/50_CLIENTS/Momentum"
+  "$PROJECTS_ROOT/10_AI_OS/AndersMem"
+  "$PROJECTS_ROOT/20_PRODUCTS/FoodLog"
+  "$PROJECTS_ROOT/10_AI_OS/Anderson"
+  "$PROJECTS_ROOT/90_ARCHIVE/Momentum"
   "$HOME/Code/ai-context"
   "$HOME/AIShared"
   "$HOME/.claude-full/shared-skills"
-  "$HOME/Code/my-projects/50_CLIENTS/Nudge"
+  "$PROJECTS_ROOT/50_CLIENTS/Nudge"
   "$HOME/Code/werkanders-os"
   "$HOME/Code/the-symbiotic-mind"
   "$HOME/Code/andersreality-website"

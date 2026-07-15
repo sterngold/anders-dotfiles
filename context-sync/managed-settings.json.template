@@ -15,13 +15,8 @@
       "Edit(*/secrets/*)",
       "Edit(.env)",
       "Edit(.env.*)",
-      "Write(*/.env*)",
-      "Write(*/secrets/*)",
-      "Write(.env)",
-      "Write(.env.*)",
       "Read(${HOME}/.config/anders-loc/.env)",
       "Edit(${HOME}/.config/anders-loc/.env)",
-      "Write(${HOME}/.config/anders-loc/.env)",
       "mcp__claude_ai_Interactive_Brokers_IBKR__create_order_instruction",
       "mcp__claude_ai_Interactive_Brokers_IBKR__delete_order_instruction",
       "mcp__plugin_playwright_playwright__browser_run_code_unsafe"

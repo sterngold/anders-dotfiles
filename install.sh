@@ -281,13 +281,11 @@ PROJECTS_ROOT="$PROJECTS_ROOT" bash "$REPO/context-sync/render-mcp.sh" \
   || echo "  WARN render-mcp.sh exited $? — .mcp.json may be stale/missing; re-run 'bash $REPO/context-sync/render-mcp.sh' or 'make -C \$PROJECTS_ROOT/00_SYSTEM/anders-config doctor'"
 
 # GitHub transport — HTTPS-canonical (AndersOS Claude Code Admin Policy, 2026-06-27).
-# The Claude Code sandbox network layer is domain-only and cannot proxy SSH (port 22), so
-# git@github.com: fails in-sandbox while HTTPS (443, allowlisted) works. Rewrite GitHub SSH
-# remotes to HTTPS transparently; the gh credential helper authenticates. Idempotent.
+# The helper also removes the legacy reverse rewrite left by older installs; keeping both
+# directions makes already-HTTPS remotes resolve back to SSH inside Claude's sandbox.
 # Policy: 00_SYSTEM/AndersSecurity/policies/claude-code-admin-policy.md
-git config --global url."https://github.com/".insteadOf "git@github.com:" \
-  && echo "  git: GitHub SSH→HTTPS rewrite set (sandbox-compatible transport)" \
-  || echo "  WARN could not set GitHub SSH→HTTPS git rewrite"
+bash "$REPO/context-sync/configure-github-transport.sh" \
+  || echo "  WARN could not configure sandbox-compatible GitHub transport"
 
 # Claude Code MANAGED admin policy — root-owned security floor at /Library (macOS).
 # NOT installed automatically: it needs sudo and is a deliberate, gated step. Surface the

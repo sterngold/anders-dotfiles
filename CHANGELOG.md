@@ -8,6 +8,18 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0](https://github.com/sterngold/anders-dotfiles/compare/v1.18.3...v1.19.0) (2026-07-16)
+
+
+### Features
+
+* **zsh:** reload-service launchd helper + eza interactive-shell guard ([#56](https://github.com/sterngold/anders-dotfiles/issues/56)) ([d873ea3](https://github.com/sterngold/anders-dotfiles/commit/d873ea3b2fb2f8dc828c3a495fc3f4ce0eb1d9f7))
+
+
+### Bug Fixes
+
+* restore Claude policy and HTTPS Git transport ([#58](https://github.com/sterngold/anders-dotfiles/issues/58)) ([427d081](https://github.com/sterngold/anders-dotfiles/commit/427d0814bfba8a61839e03f7a2b9b7f732b5d06c))
+
 ## [1.18.3](https://github.com/sterngold/anders-dotfiles/compare/v1.18.2...v1.18.3) (2026-07-10)
 
 

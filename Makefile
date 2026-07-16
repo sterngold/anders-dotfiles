@@ -15,6 +15,7 @@ build: ## Build the project
 	@if [ -f Package.swift ];   then swift build; fi
 
 test: ## Run tests
+	@bash tests/claude-settings-permissions.sh
 	@if [ -f pyproject.toml ];  then uv run pytest -q; fi
 	@if [ -f package.json ];    then npm test --if-present; fi
 	@if [ -f Package.swift ];   then swift test; fi

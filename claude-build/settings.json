@@ -62,17 +62,11 @@
       "Bash(cat */.env*)",
       "Bash(cat */secrets/*)",
       "Bash(cat *credentials*)",
-      "Write(.env)",
-      "Write(.env.*)",
-      "Write(*/.env*)",
       "Edit(.env)",
       "Edit(.env.*)",
       "Edit(*/.env*)",
-      "Write(*/secrets/*)",
       "Edit(*/secrets/*)",
-      "Write(//Users/sterngold/Documents/VladFinance/**)",
       "Edit(//Users/sterngold/Documents/VladFinance/**)",
-      "Write(//Users/sterngold/Documents/Health/**)",
       "Edit(//Users/sterngold/Documents/Health/**)"
     ],
     "defaultMode": "auto"

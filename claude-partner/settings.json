@@ -12,7 +12,6 @@
     ],
     "deny": [
       "Bash(*)",
-      "Write(*)",
       "Edit(*)",
       "NotebookEdit(*)",
       "mcp__playwright__*",

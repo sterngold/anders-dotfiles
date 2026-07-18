@@ -49,9 +49,51 @@ REPOS=(
   "$HOME/Code/public-github-fixes/notebooklm-skill"
 )
 
+# An uninitialized submodule can leave an existing but empty directory at its
+# roster path. Treat it like an absent checkout only when Git verifies that the
+# exact empty path is a gitlink in its enclosing repository. Empty ordinary
+# directories and non-empty broken checkouts must continue through --check and
+# report ERROR rather than being hidden as MISSING.
+is_uninitialized_submodule_placeholder() {
+  local repo="$1"
+  local repo_abs parent super rel entry record mode recorded_path
+  local submodule_paths key path declared=0
+
+  repo_abs="$(cd "$repo" 2>/dev/null && pwd -P)" || return 1
+  entry="$(find "$repo_abs" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" || return 1
+  [[ -z "$entry" ]] || return 1
+
+  parent="$(dirname "$repo_abs")"
+  super="$(git -C "$parent" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  case "$repo_abs" in
+    "$super"/*) rel="${repo_abs#"$super"/}" ;;
+    *) return 1 ;;
+  esac
+
+  record="$(git -C "$super" ls-files --stage -- "$rel" 2>/dev/null)" || return 1
+  [[ -n "$record" && "$record" != *$'\n'* ]] || return 1
+  mode="${record%% *}"
+  recorded_path="${record#*$'\t'}"
+  [[ "$mode" == "160000" && "$recorded_path" == "$rel" ]] || return 1
+
+  submodule_paths="$(git -C "$super" config --blob :.gitmodules \
+    --get-regexp '^submodule\..*\.path$' 2>/dev/null)" || return 1
+  while IFS=' ' read -r key path; do
+    if [[ -n "$key" && "$path" == "$rel" ]]; then
+      declared=1
+      break
+    fi
+  done <<< "$submodule_paths"
+  [[ "$declared" == "1" ]]
+}
+
 exit_code=0
 for repo in "${REPOS[@]}"; do
   if [[ ! -d "$repo" ]]; then
+    echo "MISSING $repo"
+    continue
+  fi
+  if is_uninitialized_submodule_placeholder "$repo"; then
     echo "MISSING $repo"
     continue
   fi

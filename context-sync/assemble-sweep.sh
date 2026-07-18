@@ -89,8 +89,14 @@ is_uninitialized_submodule_placeholder() {
 
 exit_code=0
 for repo in "${REPOS[@]}"; do
-  if [[ ! -d "$repo" ]]; then
+  if [[ ! -e "$repo" && ! -L "$repo" ]]; then
     echo "MISSING $repo"
+    continue
+  fi
+  if [[ -L "$repo" || ! -d "$repo" ]]; then
+    echo "ERROR $repo"
+    echo "  assemble-sweep: roster path is a symlink or non-directory"
+    exit_code=1
     continue
   fi
   if is_uninitialized_submodule_placeholder "$repo"; then

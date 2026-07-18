@@ -64,12 +64,15 @@ assert_not_contains "$SWEEP_OUTPUT" "ERROR $projects_root/20_PRODUCTS/FoodLog"
 # errors; valid and stale repositories retain their existing classifications.
 home="$TMP/classification/home"
 projects_root="$TMP/classification/projects"
+other_super="$TMP/classification/other-super"
 mkdir -p \
   "$home" \
+  "$other_super" \
   "$projects_root/00_SYSTEM/anders-config" \
   "$projects_root/10_AI_OS/AndersMem" \
   "$projects_root/10_AI_OS/Anderson" \
   "$projects_root/90_ARCHIVE/Momentum" \
+  "$projects_root/50_CLIENTS" \
   "$home/Code/ai-context"
 
 # A gitlink with only untracked .gitmodules metadata is malformed, not a
@@ -78,6 +81,14 @@ mkdir -p \
 make_gitlink_index_entry "$projects_root" "10_AI_OS/AndersMem"
 git -C "$projects_root" config -f .gitmodules \
   submodule.untracked-fixture.path "10_AI_OS/AndersMem"
+
+# Roster entries that exist but are not real directories are malformed. A
+# symlink must remain ERROR even when it resolves to a valid empty indexed
+# submodule elsewhere; classification is about the exact roster path.
+printf 'not a directory\n' > "$projects_root/50_CLIENTS/Nudge"
+ln -s "$TMP/classification/does-not-exist" "$home/AIShared"
+make_gitlink_placeholder "$other_super" "different/EmptySubmodule"
+ln -s "$other_super/different/EmptySubmodule" "$home/anders-dotfiles"
 
 printf '# fixture header\n' > "$projects_root/00_SYSTEM/anders-config/AGENTS.header.md"
 bash "$ASSEMBLE" "$projects_root/00_SYSTEM/anders-config" >/dev/null
@@ -94,6 +105,9 @@ assert_contains "$SWEEP_OUTPUT" "PASS $projects_root/00_SYSTEM/anders-config"
 assert_contains "$SWEEP_OUTPUT" "ERROR $projects_root/10_AI_OS/AndersMem"
 assert_contains "$SWEEP_OUTPUT" "ERROR $projects_root/10_AI_OS/Anderson"
 assert_contains "$SWEEP_OUTPUT" "ERROR $projects_root/90_ARCHIVE/Momentum"
+assert_contains "$SWEEP_OUTPUT" "ERROR $projects_root/50_CLIENTS/Nudge"
+assert_contains "$SWEEP_OUTPUT" "ERROR $home/AIShared"
+assert_contains "$SWEEP_OUTPUT" "ERROR $home/anders-dotfiles"
 assert_contains "$SWEEP_OUTPUT" "STALE $home/Code/ai-context"
 
 printf 'assemble-sweep classification tests: OK\n'

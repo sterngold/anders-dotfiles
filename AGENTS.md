@@ -181,7 +181,7 @@ ADR format: `docs/adr/NNNN-short-title.md`. One per decision. Date + context + d
 
 - Read this file in full before making changes.
 - Follow Section 3 (commit format) and Section 4 (branch naming) exactly.
-- Run `make lint && make test` before opening a PR. If they fail, fix or stop.
+- Run the repository-specific build, lint, test, and verification commands declared in Section 2 before opening a PR. Never invent a generic `make` target or substitute a weaker command.
 - Never commit secrets. Never bypass pre-commit hooks.
 - Sign commits if possible; otherwise note in PR description so the human can amend.
 - Add yourself as co-author trailer.

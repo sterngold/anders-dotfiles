@@ -8,6 +8,16 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.1](https://github.com/sterngold/anders-dotfiles/compare/v1.19.0...v1.19.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* classify uninitialized submodule placeholders ([#61](https://github.com/sterngold/anders-dotfiles/issues/61)) ([b0bc0a8](https://github.com/sterngold/anders-dotfiles/commit/b0bc0a836380be5d5dbabd8086ea6ce89f4d462e))
+* defer agent commands to repository contracts ([#59](https://github.com/sterngold/anders-dotfiles/issues/59)) ([80ac87b](https://github.com/sterngold/anders-dotfiles/commit/80ac87b32e5ce565f65f976b84ef6770542d09ed))
+* enforce portable command contracts ([#63](https://github.com/sterngold/anders-dotfiles/issues/63)) ([da21050](https://github.com/sterngold/anders-dotfiles/commit/da2105022e0699271ca36207ef0368250748b607))
+* separate pre-PR gates from live actions ([#62](https://github.com/sterngold/anders-dotfiles/issues/62)) ([3a32b4d](https://github.com/sterngold/anders-dotfiles/commit/3a32b4d633850144d8d7fd55ff4b1b30e59c77fe))
+
 ## [1.19.0](https://github.com/sterngold/anders-dotfiles/compare/v1.18.3...v1.19.0) (2026-07-16)
 
 

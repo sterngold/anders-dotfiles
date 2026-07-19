@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck
-        run: shellcheck install.sh sync-settings.sh context-sync/*.sh .local/bin/relay-notify.sh claude/statusline.sh
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
 
   python:
     name: python lint + test
@@ -113,12 +113,16 @@ jobs:
 
   ci:
     name: ci
-    needs: [commitlint, gitleaks, shellcheck, python, node, swift]
+    needs: [detect, commitlint, gitleaks, shellcheck, python, node, swift]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: aggregate
         run: |
+          if [ "${{ needs.detect.result }}" != "success" ]; then
+            echo "Stack detection failed or was cancelled: ${{ needs.detect.result }}"
+            exit 1
+          fi
           # Fail if any required upstream job failed (skipped is OK for stack-conditional jobs)
           for r in "${{ needs.commitlint.result }}" "${{ needs.gitleaks.result }}" \
                    "${{ needs.shellcheck.result }}" \

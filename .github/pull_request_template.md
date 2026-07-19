@@ -15,8 +15,9 @@ Title MUST follow Conventional Commits.
 ## Test plan
 
 <!-- Commands run + what you verified. Be specific. -->
-- [ ] `make lint` passes
 - [ ] `make test` passes
+- [ ] `git ls-files -z '*.sh' | xargs -0 shellcheck -S warning` passes
+- [ ] `git diff --check` passes
 - [ ] Manual check: …
 
 ## Risk

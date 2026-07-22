@@ -198,7 +198,7 @@ out=$(ensure "$REPO" "$PREFIXED_SUB" "Victim3"); rc="${out%%|*}"; path="${out#*|
 # path that IS ALREADY a registered worktree is a direct conflict. Exercises _cc_launch (not
 # just the unit under it), because the defect is in how force_new REACHES _cc_ensure_worktree.
 REPO_PHYS="$(cd "$REPO" && pwd -P)"
-out12=$(CC_NO_WORKTREE= PROJECTS_ROOT="$REPO_PHYS" zsh -c '
+out12=$(CC_NO_WORKTREE='' PROJECTS_ROOT="$REPO_PHYS" zsh -c '
   source "$1" >/dev/null 2>&1
   # Never let a regressed/mutated guard shell out to the REAL claude binary — shadow it with a
   # stub. A refusal must happen before this is ever reached, so seeing the stub fire is itself

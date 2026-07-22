@@ -8,6 +8,15 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.3](https://github.com/sterngold/anders-dotfiles/compare/v1.19.2...v1.19.3) (2026-07-22)
+
+
+### Bug Fixes
+
+* **AND-1923:** an explicit path to a registered worktree opens in place ([#70](https://github.com/sterngold/anders-dotfiles/issues/70)) ([f3b7091](https://github.com/sterngold/anders-dotfiles/commit/f3b7091dfa5ba4a709e101f43075b22662b77a37))
+* **cc:** a workspace-relative name is not a cwd path ([#67](https://github.com/sterngold/anders-dotfiles/issues/67)) ([3f61ab2](https://github.com/sterngold/anders-dotfiles/commit/3f61ab2daaf8d4b11260e53d66ad4877c3921dd5))
+* reject non-directory sweep entries in assemble-sweep ([#69](https://github.com/sterngold/anders-dotfiles/issues/69)) ([72997a0](https://github.com/sterngold/anders-dotfiles/commit/72997a0350bd2949e7e63c854c1508329a5414d8))
+
 ## [1.19.2](https://github.com/sterngold/anders-dotfiles/compare/v1.19.1...v1.19.2) (2026-07-22)
 
 

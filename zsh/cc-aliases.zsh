@@ -616,6 +616,44 @@ _cc_launch() {
       else
         repo_root=$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)
         if [[ -n "$repo_root" ]]; then
+          # AND-1923 P2 (sibling repo): an explicit path landing ON or INSIDE an
+          # ALREADY-REGISTERED linked worktree of a SIBLING repository resolves its
+          # own toplevel to ITSELF — git defines a linked worktree's toplevel as the
+          # worktree, not its primary checkout — so repo_root above is the worktree,
+          # not the repo root the registered-worktree check downstream (in
+          # _cc_ensure_worktree, AND-1923 P2(b)) is written to see. That check only
+          # fires when project_subpath begins with `.claude/worktrees/<seg>` relative
+          # to $repo_root; fed the worktree itself as $repo_root, subpath comes out
+          # empty and the check never runs — _cc_ensure_worktree then tries to grow a
+          # NESTED worktree inside the one already checked out on wt/<name>, which git
+          # refuses ("already used by worktree at ..."), after first mkdir-ing a
+          # nested .claude/worktrees/ skeleton it never cleans up.
+          # Fail-closed fix: tell a linked worktree from a normal repo or an
+          # independent clone parked at .claude/worktrees/<p> the same way
+          # _cc_worktree_state's "foreign" branch does it — via git-dir vs
+          # git-common-dir (equal for a normal repo AND for a standalone clone,
+          # since neither has a "primary vs linked" split; a linked worktree's
+          # git-dir always lives under the common dir's worktrees/ subdir instead).
+          # When it IS a linked worktree, re-derive the PRIMARY root — `git worktree
+          # list`'s first entry is always the main worktree, regardless of which
+          # worktree the command runs from — and recompute subpath against THAT, so
+          # the downstream check sees the shape it expects. Refuse rather than guess
+          # if the primary can't be determined; never silently fall through into the
+          # nested-creation trap this exists to close.
+          local _gd _gcd
+          _gd=$(git -C "$repo_root" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+          _gcd=$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+          if [[ -n "$_gd" && -n "$_gcd" && "${_gd:A}" != "${_gcd:A}" ]]; then
+            local _primary
+            # sed, not awk '{print $2}': the porcelain line is `worktree <path>` and a
+            # path containing spaces must survive whole.
+            _primary=$(git -C "$repo_root" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -1)
+            if [[ -z "$_primary" || ! -d "$_primary" ]]; then
+              printf 'cc: ⚠ %s is a linked worktree, but its primary checkout could not be determined — refusing.\n' "$repo_root" >&2
+              return 1
+            fi
+            repo_root="${_primary:A}"
+          fi
           subpath="${target#$repo_root/}"
           [[ "$subpath" == "$target" ]] && subpath=""
         fi

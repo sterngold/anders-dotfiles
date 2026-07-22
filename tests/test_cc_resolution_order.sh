@@ -222,6 +222,69 @@ fi
 [ "$(git -C "$REPO_PHYS" worktree list --porcelain | grep -c '^worktree ')" = "4" ] \
   || fail "--new vs registered worktree path: worktree count changed (shared worktree touched or a new one created)"
 
+# --- fixture for cases 13-14: a SIBLING repo (NOT under PROJECTS_ROOT) with its own
+# registered worktree "Foo" -------------------------------------------------------------------
+# Codex P2 on #70: `cc /path/to/sibling/.claude/worktrees/Foo` resolves via Rule 0 (an existing
+# absolute dir). _cc_launch's sibling-repo branch then derives repo_root by asking git for the
+# TARGET's own toplevel — but a linked worktree's toplevel IS itself, so repo_root becomes the
+# worktree, not the repo the AND-1923 P2(b) registered-worktree check (cases 8-12 above) needs to
+# see. subpath comes out empty, the check never fires, and _cc_ensure_worktree tries to grow a
+# NESTED worktree inside the one already checked out on wt/Foo — which git refuses ("already
+# used by worktree at ...") after mkdir-ing a nested .claude/worktrees/ skeleton first.
+ROOT13="$WORK/root13"
+mkdir -p "$ROOT13"
+SIB="$WORK/sibling-repo"
+mkdir -p "$SIB/proj"
+git -C "$SIB" init -q -b main
+git -C "$SIB" config user.name t; git -C "$SIB" config user.email t@e.com
+printf 'x\n' > "$SIB/proj/README.md"
+git -C "$SIB" add -A && git -C "$SIB" commit -qm init
+git -C "$SIB" worktree add -q -b wt/Foo "$SIB/.claude/worktrees/Foo" main >/dev/null 2>&1 \
+  || fail "fixture setup: could not register sibling worktree Foo"
+SIB_PHYS="$(cd "$SIB" && pwd -P)"
+
+# --- case 13: explicit path to a SIBLING repo's registered worktree — opens in place ----------
+out13=$(CC_NO_WORKTREE='' PROJECTS_ROOT="$ROOT13" zsh -c '
+  source "$1" >/dev/null 2>&1
+  claude() { printf "STUB_CLAUDE_INVOKED %s\n" "$PWD" >&2; return 0; }
+  _cc_launch CC /nonexistent-config-dir 0 0 0 local "$2"
+  printf "RC=%s\n" "$?"
+' _ "$ALIASES" "$SIB_PHYS/.claude/worktrees/Foo" 2>"$WORK/err13")
+rc13="${out13##*RC=}"
+[ "$rc13" = "0" ] \
+  || fail "sibling registered worktree (direct): expected rc=0, got '${rc13:-<empty>}' (stderr: $(tr '\n' ' ' < "$WORK/err13"))"
+grep -q "STUB_CLAUDE_INVOKED $SIB_PHYS/.claude/worktrees/Foo" "$WORK/err13" \
+  || fail "sibling registered worktree (direct): claude was not launched IN PLACE at $SIB_PHYS/.claude/worktrees/Foo (stderr: $(tr '\n' ' ' < "$WORK/err13"))"
+[ "$(git -C "$SIB_PHYS" worktree list --porcelain | grep -c '^worktree ')" = "2" ] \
+  || fail "sibling registered worktree (direct): worktree count changed in the sibling repo — a new one was created"
+[ ! -e "$SIB_PHYS/.claude/worktrees/Foo/.claude/worktrees" ] \
+  || fail "sibling registered worktree (direct): a NESTED .claude/worktrees skeleton was created inside Foo"
+
+# --- case 14: `--new` against an explicit path into a SIBLING repo's registered worktree ------
+# Same conflict as case 12, exercised through the sibling-repo branch instead of the
+# under-$PROJECTS_ROOT branch — proves _cc_launch feeds the existing --new refusal the correct
+# (corrected-to-primary) repo_root/subpath rather than bypassing it via the wrong repo_root.
+out14=$(CC_NO_WORKTREE='' PROJECTS_ROOT="$ROOT13" zsh -c '
+  source "$1" >/dev/null 2>&1
+  claude() { printf "STUB_CLAUDE_INVOKED\n" >&2; return 42; }
+  _cc_launch CC /nonexistent-config-dir 0 0 0 local "$2" --new
+  printf "RC=%s\n" "$?"
+' _ "$ALIASES" "$SIB_PHYS/.claude/worktrees/Foo" 2>"$WORK/err14")
+rc14="${out14##*RC=}"
+[ "$rc14" = "1" ] \
+  || fail "sibling --new vs registered worktree path: expected refusal rc=1, got '${rc14:-<empty>}' (stderr: $(tr '\n' ' ' < "$WORK/err14"))"
+grep -qi 'new' "$WORK/err14" \
+  || fail "sibling --new vs registered worktree path: refused but stderr doesn't name the conflict: $(tr '\n' ' ' < "$WORK/err14")"
+grep -q "STUB_CLAUDE_INVOKED" "$WORK/err14" \
+  && fail "sibling --new vs registered worktree path: claude was reached — the guard let a live launch through"
+[ ! -e "$SIB_PHYS/.claude/worktrees/Foo-2" ] \
+  || fail "sibling --new vs registered worktree path: a Foo-2 directory was fabricated"
+if git -C "$SIB_PHYS" show-ref --verify --quiet refs/heads/wt/Foo-2; then
+  fail "sibling --new vs registered worktree path: a wt/Foo-2 branch was fabricated"
+fi
+[ "$(git -C "$SIB_PHYS" worktree list --porcelain | grep -c '^worktree ')" = "2" ] \
+  || fail "sibling --new vs registered worktree path: worktree count changed (shared worktree touched or a new one created)"
+
 if [ "$fails" -ne 0 ]; then
   echo "cc resolution-order tests FAILED ($fails)" >&2
   exit 1

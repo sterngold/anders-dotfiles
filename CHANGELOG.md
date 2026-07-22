@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.2](https://github.com/sterngold/anders-dotfiles/compare/v1.19.1...v1.19.2) (2026-07-22)
+
+
+### Bug Fixes
+
+* **cc:** a directory is not a worktree ([#65](https://github.com/sterngold/anders-dotfiles/issues/65)) ([45205bb](https://github.com/sterngold/anders-dotfiles/commit/45205bb48002d2651272a7ead928816c8395d4f9))
+
 ## [1.19.1](https://github.com/sterngold/anders-dotfiles/compare/v1.19.0...v1.19.1) (2026-07-19)
 
 

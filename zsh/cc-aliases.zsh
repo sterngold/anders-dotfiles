@@ -130,12 +130,24 @@ _cc_resolve_project() {
   if [[ "$name" == /* && -d "$name" ]]; then
     printf '%s\n' "${name:A}"; return 0
   fi
-  if [[ "$name" == */* && -d "$name" ]]; then     # cwd-relative path like ./x or ../y
+  # EXPLICITLY cwd-relative: ./x or ../y. The prefix is how the caller names the intent, so
+  # these keep winning outright.
+  if [[ "$name" == ./* || "$name" == ../* ]] && [[ -d "$name" ]]; then
     printf '%s\n' "${name:A}"; return 0           # :A → absolute, normalized
   fi
-  # Rule 3: explicit relative path like "20_PRODUCTS/Nudge"
+  # Rule 3: workspace-relative like "20_PRODUCTS/Nudge" — MUST precede the bare cwd-relative
+  # fallback below. AND-1923: a worktree of the workspace contains the same tree, so running
+  # the documented `cc 20_PRODUCTS/Nudge` from inside .claude/worktrees/<x>/ used to match the
+  # CWD copy first. _cc_launch still classified that as under $root and derived a subpath
+  # pointing back into a worktree, so _cc_ensure_worktree built a nested directory that is
+  # created but never registered — the hollow skeleton every git command then resolves UP out
+  # of, into the PRIMARY checkout.
   if [[ "$name" == */* && -d "$root/$name" ]]; then
     printf '%s\n' "$root/$name"; return 0
+  fi
+  # Bare cwd-relative fallback: `cc some/dir` where some/dir exists only under the CWD.
+  if [[ "$name" == */* && -d "$name" ]]; then
+    printf '%s\n' "${name:A}"; return 0
   fi
   # Rule 1: direct child
   if [[ -d "$root/$name" ]]; then
@@ -418,6 +430,16 @@ _cc_ensure_worktree() {
   local repo_root="$1" project_subpath="$2" project_name="$3"
   local wt_branch="wt/${project_name}"
   local wt_root="$repo_root/.claude/worktrees/$project_name"
+
+  # Belt and braces for AND-1923: no legitimate project lives inside another worktree's tree,
+  # so a subpath pointing back into .claude/worktrees/ can only come from a resolution bug.
+  # Refuse BEFORE any mkdir — the defect's signature is a directory tree that exists, and a
+  # guard that returns non-zero after creating it has not prevented anything.
+  if [[ "$project_subpath" == .claude/worktrees/* || "$project_subpath" == */.claude/worktrees/* ]]; then
+    printf 'cc: ⚠ refusing a project subpath that points back into a worktree: %s\n' "$project_subpath" >&2
+    printf '    This is a resolution bug, not a layout — it would create a directory that never becomes a worktree.\n' >&2
+    return 1
+  fi
 
   # A hollow path (exists, but git inside it resolves elsewhere) must never reach the reuse
   # branch — that is what hands the session the PRIMARY checkout while it believes it is

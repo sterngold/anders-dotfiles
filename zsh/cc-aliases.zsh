@@ -380,6 +380,32 @@ _cc_refresh_worktree() {
   fi
 }
 
+# Classify $wt_root: absent | worktree | hollow.
+#
+# A DIRECTORY IS NOT A WORKTREE. The predicate that matters is not "does this path exist" but
+# "does git, run inside this path, resolve to THIS path" — because when it does not, git walks
+# UP and resolves to the primary checkout instead, and every later command silently operates
+# on the wrong repo. `rev-parse --show-toplevel` is the only question that distinguishes them:
+# a bare `--git-dir` probe SUCCEEDS inside a hollow dir (it finds the parent's), which is why
+# _cc_ff_or_warn's BROKEN-git-dir guard cannot see this case.
+_cc_worktree_state() {
+  local wt_root="$1" repo_root="$2" top common_wt common_repo
+  [[ -d "$wt_root" ]] || { print -r -- absent; return 0 }
+  top=$(git -C "$wt_root" rev-parse --show-toplevel 2>/dev/null) || { print -r -- hollow; return 0 }
+  [[ -n "$top" && "${top:A}" == "${wt_root:A}" ]] || { print -r -- hollow; return 0 }
+  # It resolves to itself — but "a git repo lives here" is not "this is OUR worktree". An
+  # independent clone parked at .claude/worktrees/<project> also has toplevel == wt_root, and
+  # reusing it would refresh and launch a FOREIGN repo under the requested project's name.
+  # Same class as the hollow case, opposite face: the first lands you in the parent repo, this
+  # one in an unrelated one. Membership is the object-store: worktrees of $repo_root share its
+  # common git dir; a separate clone does not.
+  common_wt=$(git -C "$wt_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  common_repo=$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+  if [[ -z "$common_wt" || -z "$common_repo" ]]; then print -r -- foreign; return 0; fi
+  if [[ "${common_wt:A}" != "${common_repo:A}" ]]; then print -r -- foreign; return 0; fi
+  print -r -- worktree
+}
+
 # Ensure a worktree exists for $project_name off $repo_root.
 # Echoes the final target path (worktree root, or worktree+subpath) on stdout.
 # Args: repo_root, project_subpath (relative to repo_root, may be ""), project_name
@@ -393,7 +419,40 @@ _cc_ensure_worktree() {
   local wt_branch="wt/${project_name}"
   local wt_root="$repo_root/.claude/worktrees/$project_name"
 
-  if [[ ! -d "$wt_root" ]]; then
+  # A hollow path (exists, but git inside it resolves elsewhere) must never reach the reuse
+  # branch — that is what hands the session the PRIMARY checkout while it believes it is
+  # isolated. Self-heal only when there is provably nothing to lose; otherwise refuse and say so.
+  local _wt_state
+  _wt_state=$(_cc_worktree_state "$wt_root" "$repo_root")
+  # A foreign repo is REAL content with its own history. Never self-heal it, never remove it —
+  # refuse and let a human decide. (Self-heal is only ever safe for a provably empty skeleton.)
+  if [[ "$_wt_state" == foreign ]]; then
+    printf 'cc: ⚠ %s is a git repo, but NOT a worktree of %s — refusing.\n' "$wt_root" "$repo_root" >&2
+    printf '    Its object store is %s.\n' \
+      "$(git -C "$wt_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || printf '<unresolvable>')" >&2
+    printf '    Reusing it would launch that repo under this project name. Move it aside, then re-run.\n' >&2
+    return 1
+  fi
+  if [[ "$_wt_state" == hollow ]]; then
+    # Never rm outside the worktrees container, whatever else is wrong.
+    if [[ "$wt_root" != "$repo_root/.claude/worktrees/"* ]]; then
+      printf 'cc: ⚠ refusing to touch %s — outside %s/.claude/worktrees/\n' "$wt_root" "$repo_root" >&2
+      return 1
+    fi
+    if [[ -n "$(find "$wt_root" \( -type f -o -type l \) -print -quit 2>/dev/null)" ]]; then
+      printf 'cc: ⚠ %s exists but is NOT a git worktree, and it HOLDS FILES — refusing.\n' "$wt_root" >&2
+      printf '    Git inside it resolves to %s, so a session here would drive the PRIMARY checkout.\n' \
+        "$(git -C "$wt_root" rev-parse --show-toplevel 2>/dev/null || printf '<unresolvable>')" >&2
+      printf '    Save anything you need, then: rm -rf %s && git -C %s worktree prune\n' "$wt_root" "$repo_root" >&2
+      return 1
+    fi
+    printf 'cc: repairing hollow worktree skeleton at %s (no .git, no files) ...\n' "$wt_root" >&2
+    rm -rf "$wt_root" || { printf 'cc: ⚠ could not remove %s — refusing.\n' "$wt_root" >&2; return 1; }
+    git -C "$repo_root" worktree prune 2>/dev/null
+    _wt_state=absent
+  fi
+
+  if [[ "$_wt_state" == absent ]]; then
     mkdir -p "$repo_root/.claude/worktrees"
     if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$wt_branch"; then
       git -C "$repo_root" worktree add "$wt_root" "$wt_branch" >&2 || return 1

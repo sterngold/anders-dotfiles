@@ -59,6 +59,36 @@ jobs:
       - name: shellcheck
         run: git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
 
+  shell-tests:
+    name: shell tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # zsh is required: the cc launcher is zsh, and its tests drive the real functions
+      # rather than a reimplementation of them.
+      - name: install zsh
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+      # Deliberately NOT `make test` — that also fans out to pytest/npm/swift, which this job
+      # does not own. Enumerate from the glob, and FAIL LOUD when it matches nothing: an empty
+      # glob quietly passing is exactly how these suites went unrun. They existed for months;
+      # the only runner was `make test`, which CI never invokes, and the `python` job that
+      # would otherwise have reached them is gated on a pyproject.toml this repo has never
+      # had. A test suite with no caller is decoration that reads like a safety net.
+      - name: run tests/*.sh
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(tests/*.sh)
+          if [ ${#tests[@]} -eq 0 ]; then
+            echo "no tests/*.sh found — the glob matched nothing, which is a wiring bug, not a pass"
+            exit 1
+          fi
+          echo "running ${#tests[@]} suite(s)"
+          for t in "${tests[@]}"; do
+            echo "--- $t"
+            bash "$t"
+          done
+
   python:
     name: python lint + test
     needs: detect
@@ -113,7 +143,7 @@ jobs:
 
   ci:
     name: ci
-    needs: [detect, commitlint, gitleaks, shellcheck, python, node, swift]
+    needs: [detect, commitlint, gitleaks, shellcheck, shell-tests, python, node, swift]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -123,13 +153,33 @@ jobs:
             echo "Stack detection failed or was cancelled: ${{ needs.detect.result }}"
             exit 1
           fi
-          # Fail if any required upstream job failed (skipped is OK for stack-conditional jobs)
+          # Fail if any required upstream job failed (skipped is OK for stack-conditional jobs).
+          # `needs['shell-tests']` uses bracket syntax deliberately: a hyphenated job id in
+          # property-dereference form is the kind of expression that, if it failed to resolve,
+          # would render as an EMPTY string here — which this loop reads as "not a failure".
+          # A gate whose own lookup can silently evaluate to nothing is a fake green.
+          n=0
           for r in "${{ needs.commitlint.result }}" "${{ needs.gitleaks.result }}" \
-                   "${{ needs.shellcheck.result }}" \
+                   "${{ needs.shellcheck.result }}" "${{ needs['shell-tests'].result }}" \
                    "${{ needs.python.result }}" "${{ needs.node.result }}" "${{ needs.swift.result }}"; do
+            # An EMPTY result is not a pass. A job's result is always one of success /
+            # failure / cancelled / skipped, so empty means the expression above did not
+            # resolve — a typo'd or renamed job id. Failing closed here is what stops a
+            # renamed job from silently dropping out of the gate while it still reads green.
+            if [ -z "$r" ]; then
+              echo "Upstream job result is EMPTY — a needs[...] lookup did not resolve (renamed/typo'd job id?)"
+              exit 1
+            fi
             if [ "$r" = "failure" ] || [ "$r" = "cancelled" ]; then
               echo "Upstream job failed: $r"
               exit 1
             fi
+            n=$((n + 1))
           done
-          echo "All required checks passed."
+          # Enumerate-and-count: the loop above is a literal list, so a job removed from the
+          # list disappears from the gate silently. Assert the expected arity too.
+          if [ "$n" -ne 7 ]; then
+            echo "Expected 7 upstream results, saw $n — the gate's job list drifted"
+            exit 1
+          fi
+          echo "All required checks passed ($n jobs)."

@@ -79,6 +79,25 @@ out=$(ensure "$REPO" "" "HasData" 2>"$WORK/err2"); rc="${out%%|*}"
 [ "$rc" != "0" ] \
   || fail "hollow dir with a file: expected refusal (non-zero), got rc=0"
 
+# --- case 2b: a FOREIGN repo parked at the path must be refused, never reused or removed ----
+# The other face of the same class (Codex P2 on #65): an independent clone at
+# .claude/worktrees/<project> DOES have toplevel == wt_root, so a toplevel-only check calls it
+# a worktree and cc would refresh and launch the wrong repo. Membership is the object store.
+FOREIGN="$REPO/.claude/worktrees/Foreign"
+mkdir -p "$FOREIGN"
+git -C "$FOREIGN" init -q -b main
+git -C "$FOREIGN" config user.name "Other"
+git -C "$FOREIGN" config user.email "other@example.com"
+printf 'not ours\n' > "$FOREIGN/OTHER.md"
+git -C "$FOREIGN" add -A
+git -C "$FOREIGN" commit -qm "foreign repo"
+out=$(ensure "$REPO" "" "Foreign" 2>"$WORK/err2b"); rc="${out%%|*}"
+[ "$rc" != "0" ] || fail "foreign repo: expected refusal (non-zero), got rc=0 — cc would launch an unrelated repo"
+grep -qi 'not a worktree of\|refus' "$WORK/err2b" \
+  || fail "foreign repo: refused but stderr does not say why: $(tr '\n' ' ' < "$WORK/err2b")"
+[ -f "$FOREIGN/OTHER.md" ] || fail "foreign repo: content was destroyed — a real repo must never be removed"
+[ -d "$FOREIGN/.git" ] || fail "foreign repo: .git was destroyed"
+
 # --- case 3: happy path, no dir -> a REAL worktree is created (false direction) -------------
 out=$(ensure "$REPO" "00_SYSTEM/Foo" "Fresh" 2>"$WORK/err3"); rc="${out%%|*}"; path="${out#*|}"
 [ "$rc" = "0" ] || fail "fresh worktree: expected rc=0, got $rc ($(tr '\n' ' ' < "$WORK/err3"))"

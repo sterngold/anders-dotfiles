@@ -427,15 +427,58 @@ _cc_worktree_state() {
 # Auto-inits the relevant submodule inside the worktree when the project lives
 # inside one (e.g. cc Nudge → 20_PRODUCTS/Nudge submodule).
 _cc_ensure_worktree() {
-  local repo_root="$1" project_subpath="$2" project_name="$3"
+  local repo_root="$1" project_subpath="$2" project_name="$3" force_new="${4:-0}"
   local wt_branch="wt/${project_name}"
   local wt_root="$repo_root/.claude/worktrees/$project_name"
 
-  # Belt and braces for AND-1923: no legitimate project lives inside another worktree's tree,
-  # so a subpath pointing back into .claude/worktrees/ can only come from a resolution bug.
-  # Refuse BEFORE any mkdir — the defect's signature is a directory tree that exists, and a
-  # guard that returns non-zero after creating it has not prevented anything.
+  # AND-1923 P2(b): a subpath under .claude/worktrees/ is NOT automatically the nested-creation
+  # bug below — an EXPLICIT path can legitimately name (or reach inside) an ALREADY-REGISTERED
+  # worktree, e.g. `cc /root/.claude/worktrees/Foo` resolves fine under Rule 0, but every git-dir
+  # heuristic upstream still classifies it as "a subpath under $repo_root" and hands it here.
+  # Tell the two apart with _cc_worktree_state (PR #65) on the worktree-name segment itself —
+  # reuse it, add no new detection. Registered → open the target IN PLACE: no mkdir, no branch,
+  # no refusal. Anything else (absent/hollow/foreign) IS the genuinely nested case: refuse BEFORE
+  # any mkdir — the defect's signature is a directory tree that exists, and a guard that returns
+  # non-zero after creating it has not prevented anything.
+  #
+  # AND-1923 review Finding 1 (P2): the FIRST `.claude/worktrees/<seg>` occurrence in
+  # project_subpath is not the whole story — it only proves ONE directory is registered, not
+  # that the directory this branch is about to OPEN is that same directory. Two divergent shapes
+  # slipped through on that gap:
+  #   (a) `.claude/worktrees/A/.claude/worktrees/B` — seg=A classifies cleanly (A is registered),
+  #       but the path about to be opened in place is the NESTED, never-classified
+  #       `.../A/.claude/worktrees/B` — exactly the hollow-skeleton shape AND-1921 exists to
+  #       refuse. Must still refuse.
+  #   (b) `A/.claude/worktrees/B` — a prefix BEFORE the container. seg=B classifies the
+  #       TOP-LEVEL `.claude/worktrees/B`, but the path about to be opened is the unrelated,
+  #       never-validated `A/.claude/worktrees/B`. Must not open-in-place on a path it never
+  #       classified.
+  # Fail-closed fix: only accept when project_subpath BEGINS WITH `.claude/worktrees/<seg>` —
+  # no prefix before the container (rules out (b)) — AND nothing after `<seg>` contains a
+  # further `.claude/worktrees/` occurrence (rules out (a)). Anything that doesn't reconstruct
+  # cleanly this way falls through to the existing refusal below.
   if [[ "$project_subpath" == .claude/worktrees/* || "$project_subpath" == */.claude/worktrees/* ]]; then
+    local _wt_seg="${project_subpath#*.claude/worktrees/}"
+    local _wt_seg_name="${_wt_seg%%/*}"
+    local _wt_remainder="${_wt_seg#$_wt_seg_name}"   # "" or "/rest/of/path/after/seg"
+    if [[ -n "$_wt_seg_name" ]] \
+         && { [[ "$project_subpath" == ".claude/worktrees/$_wt_seg_name" ]] \
+              || [[ "$project_subpath" == ".claude/worktrees/$_wt_seg_name/"* ]]; } \
+         && [[ "$_wt_remainder" != *".claude/worktrees/"* ]] \
+         && [[ "$(_cc_worktree_state "$repo_root/.claude/worktrees/$_wt_seg_name" "$repo_root")" == worktree ]]; then
+      # AND-1923 review Finding 2 (P2): --new asks for a FRESH, uniquely-named worktree. An
+      # explicit path that already NAMES a registered worktree is a direct conflict with that
+      # request — honoring the open-in-place branch here would silently defeat --new (two
+      # "parallel" sessions sharing one working copy, reported back as success). Refuse instead
+      # of silently picking a side.
+      if (( force_new )); then
+        printf 'cc: ⚠ --new conflicts with an explicit path into an already-registered worktree: %s\n' "$project_subpath" >&2
+        printf '    Cannot open it in place AND create a fresh one. Drop --new to reuse it, or pass the project name (not this path) to get a fresh worktree.\n' >&2
+        return 1
+      fi
+      printf '%s/%s\n' "$repo_root" "$project_subpath"
+      return 0
+    fi
     printf 'cc: ⚠ refusing a project subpath that points back into a worktree: %s\n' "$project_subpath" >&2
     printf '    This is a resolution bug, not a layout — it would create a directory that never becomes a worktree.\n' >&2
     return 1
@@ -590,7 +633,7 @@ _cc_launch() {
           wt_name="${badge}-${n}"
           printf 'cc: --new → fresh worktree %s off the remote default\n' "$wt_name" >&2
         fi
-        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name") || return 1
+        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name" "$force_new") || return 1
         badge="$wt_name"
       fi
     fi

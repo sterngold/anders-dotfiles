@@ -106,6 +106,121 @@ rc=$(zsh -c '
 [ "$rc" != "0" ] || fail "nested-worktree subpath: expected refusal, got rc=0"
 [ ! -d "$REPO/.claude/worktrees/Victim/.claude" ] \
   || fail "nested-worktree subpath: a nested tree was CREATED at $REPO/.claude/worktrees/Victim/.claude"
+# AND-1923 P2(b): the would-be worktree root itself must not exist either — if the refusal ever
+# regresses into a fallthrough, `_cc_ensure_worktree`'s "absent" branch would happily `git
+# worktree add` a REAL worktree at this path (no manual nested mkdir required to fail this).
+[ ! -e "$REPO/.claude/worktrees/Victim" ] \
+  || fail "nested-worktree subpath: the would-be worktree dir $REPO/.claude/worktrees/Victim was CREATED"
+
+# --- fixture for cases 8-9: a REAL registered worktree of $REPO, named "Foo" ----------------
+# AND-1923 P2(b): case 7 above proves the genuinely-nested refusal. These two prove the other
+# face — an explicit path that IS (or sits inside) an already-registered worktree must open in
+# place instead of being caught by the same .claude/worktrees/* pattern.
+git -C "$REPO" worktree add -q -b wt/Foo "$REPO/.claude/worktrees/Foo" main >/dev/null 2>&1 \
+  || fail "fixture setup: could not register worktree Foo"
+
+# Same "<rc>|<stdout>" harness as test_cc_worktree_integrity.sh, so stdout and stderr don't mix.
+# AND-1923 review Finding 3 (P3): the mktemp'd stderr file used to be deleted UNREAD — on a
+# failing case the refusal diagnostic (the one thing that says WHY) was thrown away, and an
+# empty $5 from a failed mktemp would have fed `2>""` to the inner zsh call and misattributed
+# whatever that produced to the callee. Guard the mktemp result and stash the stderr text in
+# $_ensure_err (a global, read by callers after each `ensure` call) instead of discarding it —
+# stdout contract ("<rc>|<path>") is unchanged so every existing caller keeps working as-is.
+ensure() { # <repo> <subpath> <name> [<force_new>]
+  local err result
+  _ensure_err=""
+  err=$(mktemp) || { _ensure_err="ensure(): mktemp failed"; printf '99|\n'; return; }
+  result=$(zsh -c '
+    source "$1" >/dev/null 2>&1
+    out=$(_cc_ensure_worktree "$2" "$3" "$4" "$5" 2>"$6")
+    printf "%s|%s\n" "$?" "$out"
+  ' _ "$ALIASES" "$1" "$2" "$3" "${4:-0}" "$err")
+  _ensure_err=$(tr '\n' ' ' < "$err" 2>/dev/null)
+  rm -f "$err"
+  printf '%s\n' "$result"
+}
+
+# --- case 8: explicit path AT a registered worktree's own root — open in place ---------------
+out=$(ensure "$REPO" ".claude/worktrees/Foo" "Foo"); rc="${out%%|*}"; path="${out#*|}"
+[ "$rc" = "0" ] \
+  || fail "registered worktree (direct): expected rc=0, got $rc (stderr: ${_ensure_err:-<empty>})"
+[ "$path" = "$REPO/.claude/worktrees/Foo" ] \
+  || fail "registered worktree (direct): expected open-in-place path $REPO/.claude/worktrees/Foo, got '${path:-<empty>}' (stderr: ${_ensure_err:-<empty>})"
+# No SECOND worktree/branch must have been fabricated for this call.
+git -C "$REPO" worktree list --porcelain | grep -q "^worktree .*/Foo$" \
+  || fail "registered worktree (direct): Foo is no longer a registered worktree after the call"
+[ "$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ')" = "2" ] \
+  || fail "registered worktree (direct): worktree count changed — a new one was created"
+
+# --- case 9: explicit path INSIDE a registered worktree — open in place, no refusal ----------
+mkdir -p "$REPO/.claude/worktrees/Foo/20_PRODUCTS/Nudge"
+out=$(ensure "$REPO" ".claude/worktrees/Foo/20_PRODUCTS/Nudge" "Nudge"); rc="${out%%|*}"; path="${out#*|}"
+[ "$rc" = "0" ] \
+  || fail "registered worktree (nested): expected rc=0, got $rc (stderr: ${_ensure_err:-<empty>})"
+[ "$path" = "$REPO/.claude/worktrees/Foo/20_PRODUCTS/Nudge" ] \
+  || fail "registered worktree (nested): expected open-in-place path, got '${path:-<empty>}' (stderr: ${_ensure_err:-<empty>})"
+[ "$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ')" = "2" ] \
+  || fail "registered worktree (nested): worktree count changed — a new one was created"
+
+# --- case 10: NESTED worktree-inside-worktree — the first .claude/worktrees/<seg> occurrence -
+# is registered, but the path this branch would open is the SECOND, never-classified one. This
+# is exactly the hollow-skeleton shape AND-1921 exists to refuse. AND-1923 review Finding 1(a).
+git -C "$REPO" worktree add -q -b wt/A "$REPO/.claude/worktrees/A" main >/dev/null 2>&1 \
+  || fail "fixture setup: could not register worktree A"
+NESTED_SUB=".claude/worktrees/A/.claude/worktrees/B"
+out=$(ensure "$REPO" "$NESTED_SUB" "Victim2"); rc="${out%%|*}"; path="${out#*|}"
+[ "$rc" != "0" ] \
+  || fail "nested worktree-in-worktree: expected refusal, got rc=0 path='$path'"
+[ ! -e "$REPO/.claude/worktrees/A/.claude/worktrees" ] \
+  || fail "nested worktree-in-worktree: a nested tree was CREATED at $REPO/.claude/worktrees/A/.claude/worktrees"
+[ ! -e "$REPO/.claude/worktrees/Victim2" ] \
+  || fail "nested worktree-in-worktree: the would-be worktree dir Victim2 was CREATED"
+
+# --- case 11: PREFIX before the container — the registered segment is a DIFFERENT directory ---
+# than the one this branch would open. `A/.claude/worktrees/B`: seg=B classifies the TOP-LEVEL
+# `.claude/worktrees/B` (registered below), but the path opened would be the unrelated, never-
+# validated `A/.claude/worktrees/B`. AND-1923 review Finding 1(b).
+mkdir -p "$REPO/A/.claude/worktrees/B"
+printf 'unrelated\n' > "$REPO/A/.claude/worktrees/B/UNVALIDATED.txt"
+git -C "$REPO" worktree add -q -b wt/B "$REPO/.claude/worktrees/B" main >/dev/null 2>&1 \
+  || fail "fixture setup: could not register worktree B"
+PREFIXED_SUB="A/.claude/worktrees/B"
+out=$(ensure "$REPO" "$PREFIXED_SUB" "Victim3"); rc="${out%%|*}"; path="${out#*|}"
+[ "$rc" != "0" ] \
+  || fail "prefix-before-container: expected refusal, got rc=0 path='$path' — opened an unclassified directory"
+[ ! -e "$REPO/.claude/worktrees/Victim3" ] \
+  || fail "prefix-before-container: the would-be worktree dir Victim3 was CREATED"
+[ "$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ')" = "4" ] \
+  || fail "prefix-before-container: worktree count changed unexpectedly (fixture has Foo, A, B + main)"
+
+# --- case 12: `--new` against an explicit path naming a registered worktree must refuse -------
+# AND-1923 review Finding 2 (P2). --new asks for a FRESH, uniquely-named worktree; an explicit
+# path that IS ALREADY a registered worktree is a direct conflict. Exercises _cc_launch (not
+# just the unit under it), because the defect is in how force_new REACHES _cc_ensure_worktree.
+REPO_PHYS="$(cd "$REPO" && pwd -P)"
+out12=$(CC_NO_WORKTREE= PROJECTS_ROOT="$REPO_PHYS" zsh -c '
+  source "$1" >/dev/null 2>&1
+  # Never let a regressed/mutated guard shell out to the REAL claude binary — shadow it with a
+  # stub. A refusal must happen before this is ever reached, so seeing the stub fire is itself
+  # a failure signature, not just an inert safety net.
+  claude() { printf "STUB_CLAUDE_INVOKED\n" >&2; return 42; }
+  _cc_launch CC /nonexistent-config-dir 0 0 0 local "$2" --new
+  printf "RC=%s\n" "$?"
+' _ "$ALIASES" "$REPO_PHYS/.claude/worktrees/Foo" 2>"$WORK/err12")
+rc12="${out12##*RC=}"
+[ "$rc12" = "1" ] \
+  || fail "--new vs registered worktree path: expected refusal rc=1, got '${rc12:-<empty>}' (stderr: $(tr '\n' ' ' < "$WORK/err12"))"
+grep -qi 'new' "$WORK/err12" \
+  || fail "--new vs registered worktree path: refused but stderr doesn't name the conflict: $(tr '\n' ' ' < "$WORK/err12")"
+grep -q "STUB_CLAUDE_INVOKED" "$WORK/err12" \
+  && fail "--new vs registered worktree path: claude was reached — the guard let a live launch through"
+[ ! -e "$REPO_PHYS/.claude/worktrees/Foo-2" ] \
+  || fail "--new vs registered worktree path: a Foo-2 directory was fabricated"
+if git -C "$REPO_PHYS" show-ref --verify --quiet refs/heads/wt/Foo-2; then
+  fail "--new vs registered worktree path: a wt/Foo-2 branch was fabricated"
+fi
+[ "$(git -C "$REPO_PHYS" worktree list --porcelain | grep -c '^worktree ')" = "4" ] \
+  || fail "--new vs registered worktree path: worktree count changed (shared worktree touched or a new one created)"
 
 if [ "$fails" -ne 0 ]; then
   echo "cc resolution-order tests FAILED ($fails)" >&2

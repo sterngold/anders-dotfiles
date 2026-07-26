@@ -1,9 +1,15 @@
 name: release-please
 
+# No `push` trigger, deliberately (fleet git/PR-friction sweep, 2026-07-26):
+# per-push release PRs self-merged all day and kept moving main's tip, which
+# made every open PR go stale between fetch and merge. One daily cron cut
+# (plus manual dispatch for urgent releases) keeps versioning identical —
+# release-please accumulates the conventional commits since the last release.
+# Reverting is one line: put `push: {branches: [main]}` back under `on:`.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '47 7 * * *'
 
 permissions:
   contents: write

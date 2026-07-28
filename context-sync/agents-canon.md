@@ -32,6 +32,7 @@ Format: `<type>(<scope>): <subject>`
 | `test` | Tests only |
 | `chore` | Tooling, deps, config |
 | `ci` | CI/CD only |
+| `build` | Build system, bundler, or packaging change |
 | `revert` | Revert prior commit |
 
 **Scope** = ticket ID when available (Linear/Jira/GitHub issue).

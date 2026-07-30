@@ -210,8 +210,8 @@ jobs:
           done
           # Enumerate-and-count: the loop above is a literal list, so a job removed from the
           # list disappears from the gate silently. Assert the expected arity too.
-          if [ "$n" -ne 7 ]; then
-            echo "Expected 7 upstream results, saw $n — the gate's job list drifted"
+          if [ "$n" -ne 8 ]; then
+            echo "Expected 8 upstream results, saw $n — the gate's job list drifted"
             exit 1
           fi
           echo "All required checks passed ($n jobs)."

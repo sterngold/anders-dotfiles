@@ -60,18 +60,27 @@ jobs:
       # main, so per-commit commitlint alone cannot protect main. Lint the
       # title against the same config the commit lint uses.
       # Title goes through env (never template-interpolated into the script).
-      # Installed into the checkout (--no-save): commitlint resolves `extends`
-      # from the CONFIG FILE's directory, so the preset must be in the repo
-      # root's node_modules — npx's temp prefix is invisible from there.
-      # Exact pins + --ignore-scripts: a required gate must not execute
-      # whatever the registry serves today, nor any dep lifecycle script.
+      # Isolated temp prefix (Codex P2 on anders-repo-template#14): npm install
+      # in the checkout would first install the PROJECT's own dependency tree —
+      # a private/heavy dep could fail the gate on a valid title. The prefix
+      # holds only the two exact-pinned lint packages (--ignore-scripts), and
+      # the config is copied beside them because commitlint resolves `extends`
+      # from the CONFIG FILE's directory.
       - name: lint PR title against commitlint config
         env:
           TITLE: ${{ github.event.pull_request.title }}
+          PRNUM: ${{ github.event.pull_request.number }}
         run: |
-          npm install --no-save --no-audit --no-fund --ignore-scripts \
-            @commitlint/cli@21.2.1 @commitlint/config-conventional@21.2.0
-          printf '%s\n' "$TITLE" | npx --no-install commitlint --config .commitlintrc.json
+          mkdir -p "$RUNNER_TEMP/title-lint"
+          cp .commitlintrc.json "$RUNNER_TEMP/title-lint/"
+          npm install --prefix "$RUNNER_TEMP/title-lint" --no-save --no-audit --no-fund \
+            --ignore-scripts @commitlint/cli@21.2.1 @commitlint/config-conventional@21.2.0
+          # Lint the REAL squash subject: GitHub appends " (#N)" on squash-merge
+          # (Codex P2 on anders-skills-lite#6), so a title at the length limit
+          # would land over it on main.
+          printf '%s (#%s)\n' "$TITLE" "$PRNUM" \
+            | npx --prefix "$RUNNER_TEMP/title-lint" --no-install commitlint \
+                --config "$RUNNER_TEMP/title-lint/.commitlintrc.json"
 
   gitleaks:
     name: secret scan

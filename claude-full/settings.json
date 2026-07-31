@@ -106,10 +106,6 @@
           {
             "type": "command",
             "command": "bash ${PROJECTS_ROOT}/00_SYSTEM/anders-config/.claude/hooks/guard-bash.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-deploy.sh"
           }
         ]
       },
@@ -128,15 +124,6 @@
           {
             "type": "command",
             "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-memory-acl.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/guard-new-hook-audit.sh"
           }
         ]
       },
@@ -225,16 +212,7 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/stop-gate.sh"
-          }
-        ]
-      }
-    ]
+    "Stop": []
   },
   "statusLine": {
     "type": "command",

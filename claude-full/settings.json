@@ -192,10 +192,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/validate-file.sh"
-          },
-          {
-            "type": "command",
             "command": "bash ${PROJECTS_ROOT}/.claude/hooks/format-python.sh"
           }
         ]

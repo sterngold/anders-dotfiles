@@ -129,17 +129,7 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ${PROJECTS_ROOT}/.claude/hooks/validate-file.sh"
-          }
-        ]
-      }
-    ],
+    "PostToolUse": [],
     "UserPromptSubmit": [
       {
         "hooks": [

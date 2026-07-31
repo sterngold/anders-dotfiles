@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.4](https://github.com/sterngold/anders-dotfiles/compare/v1.19.3...v1.19.4) (2026-07-31)
+
+
+### Bug Fixes
+
+* **ci:** lint PR titles as the squash subject (AND-1960) ([#77](https://github.com/sterngold/anders-dotfiles/issues/77)) ([8e6b2e1](https://github.com/sterngold/anders-dotfiles/commit/8e6b2e1b7464081ed066968a0906b1dc9ea9ba43))
+
 ## [1.19.3](https://github.com/sterngold/anders-dotfiles/compare/v1.19.2...v1.19.3) (2026-07-22)
 
 

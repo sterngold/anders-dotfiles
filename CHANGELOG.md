@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.5](https://github.com/sterngold/anders-dotfiles/compare/v1.19.4...v1.19.5) (2026-08-01)
+
+
+### Bug Fixes
+
+* drop four dead hook registrations left by my-projects[#599](https://github.com/sterngold/anders-dotfiles/issues/599) ([#78](https://github.com/sterngold/anders-dotfiles/issues/78)) ([fda28b2](https://github.com/sterngold/anders-dotfiles/commit/fda28b2270371111edfe7a42df2a5d96b0cbc833))
+
 ## [1.19.4](https://github.com/sterngold/anders-dotfiles/compare/v1.19.3...v1.19.4) (2026-07-31)
 
 

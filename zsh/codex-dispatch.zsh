@@ -174,7 +174,9 @@ Options:
   fi
 
   # Create or reuse the isolated Codex worktree (mirrors _cc_ensure_worktree's add).
+  local _reused_worktree=0
   if [[ -d "$wt_root" ]]; then
+    _reused_worktree=1
     if (( ! reuse )); then
       print -ru2 -- "codex-dispatch: worktree already exists: $wt_root"
       print -ru2 -- "  --reuse to use it, or remove: git -C \"$repo_root\" worktree remove \"$wt_root\""
@@ -234,6 +236,37 @@ Options:
       local base
       base="$(_cc_worktree_base "$repo_root")"
       git -C "$repo_root" worktree add -b "$branch" "$wt_root" "$base" >&2 || return 1
+    fi
+  fi
+
+  # A matching branch name is not enough: the branch can carry task commits while the
+  # remote default has advanced. Fetch and classify every real reuse before Codex runs.
+  # Safe behind-only state is fast-forwarded. Divergence or dirt is preserved exactly and
+  # refused; silently renaming an explicitly requested Codex branch would break the brief's
+  # branch contract, so the caller must dispatch a fresh branch from the reported base.
+  if (( _reused_worktree && ! dry )); then
+    if git -C "$wt_root" remote get-url origin >/dev/null 2>&1; then
+      local _fetch_err
+      if ! _fetch_err="$(git -C "$wt_root" fetch origin --quiet 2>&1)"; then
+        print -ru2 -- "codex-dispatch: reuse refused — cannot verify freshness because fetch origin failed: $_fetch_err"
+        return 1
+      fi
+      local _reuse_base _reuse_behind _reuse_ahead _reuse_dirty
+      _reuse_base="$(_cc_worktree_base "$repo_root")" || return 1
+      _reuse_behind="$(git -C "$wt_root" rev-list --count "HEAD..$_reuse_base" 2>/dev/null)" || return 1
+      if [[ "${_reuse_behind:-0}" -gt 0 ]]; then
+        _reuse_ahead="$(git -C "$wt_root" rev-list --count "$_reuse_base..HEAD" 2>/dev/null || print 0)"
+        _reuse_dirty="$(git -C "$wt_root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')"
+        if [[ "$_reuse_ahead" -eq 0 && "$_reuse_dirty" -eq 0 ]]; then
+          git -C "$wt_root" merge --ff-only "$_reuse_base" >/dev/null 2>&1 \
+            || { print -ru2 -- "codex-dispatch: reuse refused — safe fast-forward to $_reuse_base failed"; return 1; }
+          print -ru2 -- "codex-dispatch: refreshed $branch → $_reuse_base (was $_reuse_behind behind)"
+        else
+          print -ru2 -- "codex-dispatch: reuse refused — '$branch' is divergent from $_reuse_base (ahead $_reuse_ahead, behind $_reuse_behind, dirty $_reuse_dirty)."
+          print -ru2 -- "  Divergent work is preserved unchanged. Dispatch a new branch from $_reuse_base; this brief will not run in the stale worktree."
+          return 1
+        fi
+      fi
     fi
   fi
 

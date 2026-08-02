@@ -349,8 +349,9 @@ _cc_repair_worktree_configs() {
 
 # Fetch one git dir and fast-forward it to its remote default branch when SAFE.
 # Safe = clean tree AND no local commits ahead → ff-only can never lose work. If the
-# dir is behind but dirty/ahead, warn (with the base ref) instead of mutating. Pure
-# safety net against the stale-HEAD trap (a worktree silently sitting behind origin).
+# dir is behind but dirty/ahead, return 75 after warning so callers cannot launch an
+# agent there. The distinct status lets `cc` preserve the worktree and allocate a fresh
+# numbered one rather than resetting or rebasing somebody's task commits.
 _cc_ff_or_warn() {
   local dir="$1" label="$2" base behind ahead dirty
   # A BROKEN git dir (e.g. a submodule wrongly populated inside a linked superproject
@@ -368,11 +369,16 @@ _cc_ff_or_warn() {
   ahead=$(git -C "$dir" rev-list --count "$base..HEAD" 2>/dev/null || echo 0)
   dirty=$(git -C "$dir" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   if [[ "$ahead" -eq 0 && "$dirty" -eq 0 ]]; then
-    git -C "$dir" merge --ff-only "$base" >/dev/null 2>&1 \
-      && printf 'cc: refreshed %s → %s (was %s behind)\n' "$label" "$base" "$behind" >&2
+    if git -C "$dir" merge --ff-only "$base" >/dev/null 2>&1; then
+      printf 'cc: refreshed %s → %s (was %s behind)\n' "$label" "$base" "$behind" >&2
+    else
+      printf 'cc: ⚠ could not fast-forward %s to %s — refusing stale reuse.\n' "$label" "$base" >&2
+      return 75
+    fi
   else
     printf 'cc: ⚠ %s is %s behind %s (ahead %s, dirty %s files) — NOT refreshed. Branch task work off %s.\n' \
       "$label" "$behind" "$base" "$ahead" "$dirty" "$base" >&2
+    return 75
   fi
 }
 
@@ -380,12 +386,14 @@ _cc_ff_or_warn() {
 # AND-1346 stale-HEAD trap actually bit) so a session never starts on a stale tree.
 _cc_refresh_worktree() {
   local wt_root="$1" repo_root="$2" project_subpath="$3" wt_branch="$4"
-  _cc_ff_or_warn "$wt_root" "$wt_branch"
+  _cc_ff_or_warn "$wt_root" "$wt_branch" || return $?
   if [[ -n "$project_subpath" && -f "$repo_root/.gitmodules" ]]; then
     local sub
     while IFS= read -r sub; do
       if [[ "$project_subpath" == "$sub" || "$project_subpath" == "$sub/"* ]]; then
-        [[ -e "$wt_root/$sub/.git" ]] && _cc_ff_or_warn "$wt_root/$sub" "submodule $sub"
+        if [[ -e "$wt_root/$sub/.git" ]]; then
+          _cc_ff_or_warn "$wt_root/$sub" "submodule $sub" || return $?
+        fi
         break
       fi
     done < <(git -C "$repo_root" config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
@@ -519,16 +527,41 @@ _cc_ensure_worktree() {
 
   if [[ "$_wt_state" == absent ]]; then
     mkdir -p "$repo_root/.claude/worktrees"
+    # `--new` and wrong-branch recovery both promise a worktree off the current
+    # remote default. Refresh the remote-tracking ref before resolving that base;
+    # otherwise a clean but wrongly-checked-out container can produce a replacement
+    # from an arbitrarily stale cached origin/main.
+    if git -C "$repo_root" remote get-url origin >/dev/null 2>&1; then
+      git -C "$repo_root" fetch -q origin 2>/dev/null \
+        || { printf 'cc: ⚠ could not fetch origin for fresh worktree %s — refusing stale creation.\n' "$project_name" >&2; return 1; }
+    fi
+    local _attached_existing=0
     if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$wt_branch"; then
       git -C "$repo_root" worktree add "$wt_root" "$wt_branch" >&2 || return 1
+      _attached_existing=1
     else
       local base
       base=$(_cc_worktree_base "$repo_root")
       git -C "$repo_root" worktree add -b "$wt_branch" "$wt_root" "$base" >&2 || return 1
     fi
+    # A pre-existing branch may itself be stale or divergent. Run the same reuse gate
+    # immediately instead of treating path creation as proof of freshness.
+    if (( _attached_existing )); then
+      _cc_refresh_worktree "$wt_root" "$repo_root" "$project_subpath" "$wt_branch" || return $?
+    fi
   else
-    # Reuse: don't hand back a stale worktree (the AND-1346 trap). Non-fatal.
-    _cc_refresh_worktree "$wt_root" "$repo_root" "$project_subpath" "$wt_branch" || true
+    # A registered path on the wrong branch is not this reusable session worktree.
+    # Preserve it and let _cc_launch allocate a fresh numbered worktree.
+    local _wt_current
+    _wt_current=$(git -C "$wt_root" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [[ "$_wt_current" != "$wt_branch" ]]; then
+      printf 'cc: ⚠ %s is on %s, expected %s — preserving it and refusing reuse.\n' \
+        "$wt_root" "${_wt_current:-<unknown>}" "$wt_branch" >&2
+      return 75
+    fi
+    # Reuse only after the freshness gate. Status 75 means the worktree is preserved
+    # but cannot host this new session safely.
+    _cc_refresh_worktree "$wt_root" "$repo_root" "$project_subpath" "$wt_branch" || return $?
   fi
 
   # If project lives inside a submodule that isn't populated in the worktree,
@@ -671,7 +704,34 @@ _cc_launch() {
           wt_name="${badge}-${n}"
           printf 'cc: --new → fresh worktree %s off the remote default\n' "$wt_name" >&2
         fi
-        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name" "$force_new") || return 1
+        local _ensure_rc=0
+        target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name" "$force_new") || _ensure_rc=$?
+        if (( _ensure_rc == 75 && ! force_new )); then
+          # The reusable worktree has task commits or is on another branch. Preserve it
+          # byte-for-byte. Reuse the first healthy numbered successor if one already
+          # exists; otherwise create the next free one. This prevents plain `cc Foo`
+          # from leaking Foo-3, Foo-4, ... after Foo itself was preserved.
+          local n=2
+          while true; do
+            wt_name="${badge}-${n}"
+            if [[ -d "$repo_root/.claude/worktrees/$wt_name" ]]; then
+              _ensure_rc=0
+              target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name" 0) || _ensure_rc=$?
+              if (( _ensure_rc == 0 )); then
+                printf 'cc: preserved stale worktree; reusing healthy successor %s\n' "$wt_name" >&2
+                break
+              fi
+              (( _ensure_rc == 75 )) || return 1
+            elif ! git -C "$repo_root" show-ref --verify --quiet "refs/heads/wt/$wt_name"; then
+              printf 'cc: preserved stale worktree; opening fresh %s off the remote default\n' "$wt_name" >&2
+              target=$(_cc_ensure_worktree "$repo_root" "$subpath" "$wt_name" 1) || return 1
+              break
+            fi
+            (( n++ ))
+          done
+        elif (( _ensure_rc != 0 )); then
+          return 1
+        fi
         badge="$wt_name"
       fi
     fi

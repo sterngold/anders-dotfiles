@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.6](https://github.com/sterngold/anders-dotfiles/compare/v1.19.5...v1.19.6) (2026-08-03)
+
+
+### Bug Fixes
+
+* prevent stale agent worktree reuse ([bf5e175](https://github.com/sterngold/anders-dotfiles/commit/bf5e175391da23affe865f112c91051737d650ce))
+
 ## [1.19.5](https://github.com/sterngold/anders-dotfiles/compare/v1.19.4...v1.19.5) (2026-08-01)
 
 

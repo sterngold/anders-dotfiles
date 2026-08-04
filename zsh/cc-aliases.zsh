@@ -400,6 +400,101 @@ _cc_refresh_worktree() {
   fi
 }
 
+# A registered session worktree parked on the WRONG branch: restore it to wt/<name>, but ONLY
+# when doing so provably discards nothing. Returns 0 = restored (caller may reuse), 1 = refused
+# (caller preserves it and allocates a numbered successor, exactly as before).
+#
+# Refusing a parked worktree is correct — reusing one sitting on `main` would put the session's
+# commits on `main`. What was wrong is that the refusal was TERMINAL: nothing ever put the
+# worktree back, so every later `cc <name>` skipped it and leaked <name>-2, -3, ... (observed
+# 2026-08-02: eight worktrees parked across the workspace, one already on its third).
+#
+# The safe subset is the same one the hollow-skeleton branch already uses — act only on a state
+# that provably holds nothing:
+#   0. the parked shape cannot represent deliberate human context: a DETACHED HEAD (no branch to
+#      be attached to) or the repo's DEFAULT branch (main/master, never a task branch — and the
+#      exact shape observed live). A NAMED branch (feat/…, copilot/…, a review checkout) may be
+#      someone's working context even when clean and absorbed, and `.claude/worktrees/<name>`
+#      belongs to the session that created it, so that keeps the original refusal. This is a
+#      standing promise pinned by tests/test_agent_worktree_freshness.sh, which requires an
+#      `unexpected-branch` worktree to survive byte-for-byte;
+#   1. the tree is completely clean (untracked files included: `git switch` would keep them, but
+#      an untracked file is often the session WIP we must not gamble on);
+#   2. HEAD is already an ancestor of the base ref, so the parked branch carries no unique commit;
+#   3. that base was refreshed from origin first — "absorbed" judged against a stale cached ref
+#      is not proof, it is the trap in a different coat.
+# Any one of those unmet → refuse, unchanged. Never silent: a branch change is always announced.
+_cc_restore_parked_worktree() {
+  local wt_root="$1" repo_root="$2" wt_branch="$3" current="$4"
+  local base base_branch dirty ahead
+  local _preserve="preserving it and refusing reuse"
+
+  base=$(_cc_worktree_base "$repo_root")
+  if [[ -z "$base" || "$base" == HEAD ]]; then
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (no usable base ref to compare against).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
+    return 1
+  fi
+  base_branch="${base#origin/}"
+  if [[ "$current" != HEAD && "$current" != "$base_branch" ]]; then
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (a named branch may be another session'"'"'s context).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
+    return 1
+  fi
+
+  dirty=$(git -C "$wt_root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  if [[ "${dirty:-1}" -ne 0 ]]; then
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (%s uncommitted/untracked file(s)).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" "$dirty" >&2
+    return 1
+  fi
+
+  # Fail CLOSED on a fetch failure, unlike _cc_ff_or_warn: that one only declines to refresh,
+  # this one would move HEAD off a branch on the strength of a possibly-stale comparison.
+  if git -C "$wt_root" remote get-url origin >/dev/null 2>&1; then
+    if ! git -C "$wt_root" fetch -q origin 2>/dev/null; then
+      printf 'cc: ⚠ %s is on %s, expected %s — %s (could not fetch origin; cannot prove it holds nothing unique).\n' \
+        "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
+      return 1
+    fi
+  fi
+
+  if ! git -C "$wt_root" rev-parse --verify --quiet "${base}^{commit}" >/dev/null 2>&1; then
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (base ref %s does not resolve).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" "$base" >&2
+    return 1
+  fi
+
+  if ! git -C "$wt_root" merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
+    ahead=$(git -C "$wt_root" rev-list --count "$base..HEAD" 2>/dev/null || printf '?')
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (%s commit(s) not in %s).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" "$ahead" "$base" >&2
+    return 1
+  fi
+
+  # Reattach to a surviving wt/<name> rather than recreating it — that branch may carry earlier
+  # session commits, and `switch -c` over them would orphan the lot. A branch already checked out
+  # in ANOTHER worktree makes `switch` fail; that refusal is correct, so let it stand.
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$wt_branch"; then
+    if ! git -C "$wt_root" switch -q "$wt_branch" 2>/dev/null; then
+      printf 'cc: ⚠ %s is on %s and %s could not be checked out (in use by another worktree?) — %s.\n' \
+        "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
+      return 1
+    fi
+    printf 'cc: %s was parked on %s (clean, nothing unique) — restored to existing %s.\n' \
+      "$wt_root" "$current" "$wt_branch" >&2
+  else
+    if ! git -C "$wt_root" switch -q -c "$wt_branch" "$base" 2>/dev/null; then
+      printf 'cc: ⚠ %s is on %s and %s could not be created off %s — %s.\n' \
+        "$wt_root" "$current" "$wt_branch" "$base" "$_preserve" >&2
+      return 1
+    fi
+    printf 'cc: %s was parked on %s (clean, nothing unique) — restored to %s off %s.\n' \
+      "$wt_root" "$current" "$wt_branch" "$base" >&2
+  fi
+  return 0
+}
+
 # Classify $wt_root: absent | worktree | hollow.
 #
 # A DIRECTORY IS NOT A WORKTREE. The predicate that matters is not "does this path exist" but
@@ -550,14 +645,14 @@ _cc_ensure_worktree() {
       _cc_refresh_worktree "$wt_root" "$repo_root" "$project_subpath" "$wt_branch" || return $?
     fi
   else
-    # A registered path on the wrong branch is not this reusable session worktree.
-    # Preserve it and let _cc_launch allocate a fresh numbered worktree.
+    # A registered path on the wrong branch is not this reusable session worktree. Restore it
+    # when that provably loses nothing; otherwise preserve it and let _cc_launch allocate a
+    # fresh numbered worktree.
     local _wt_current
     _wt_current=$(git -C "$wt_root" rev-parse --abbrev-ref HEAD 2>/dev/null)
     if [[ "$_wt_current" != "$wt_branch" ]]; then
-      printf 'cc: ⚠ %s is on %s, expected %s — preserving it and refusing reuse.\n' \
-        "$wt_root" "${_wt_current:-<unknown>}" "$wt_branch" >&2
-      return 75
+      _cc_restore_parked_worktree "$wt_root" "$repo_root" "$wt_branch" "${_wt_current:-<unknown>}" \
+        || return 75
     fi
     # Reuse only after the freshness gate. Status 75 means the worktree is preserved
     # but cannot host this new session safely.

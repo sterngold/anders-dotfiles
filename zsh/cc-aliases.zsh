@@ -412,22 +412,31 @@ _cc_refresh_worktree() {
 # The safe subset is the same one the hollow-skeleton branch already uses — act only on a state
 # that provably holds nothing:
 #   0. the parked shape cannot represent deliberate human context: a DETACHED HEAD (no branch to
-#      be attached to) or the repo's DEFAULT branch (main/master, never a task branch — and the
-#      exact shape observed live). A NAMED branch (feat/…, copilot/…, a review checkout) may be
-#      someone's working context even when clean and absorbed, and `.claude/worktrees/<name>`
-#      belongs to the session that created it, so that keeps the original refusal. This is a
-#      standing promise pinned by tests/test_agent_worktree_freshness.sh, which requires an
-#      `unexpected-branch` worktree to survive byte-for-byte;
+#      be attached to), the repo's DEFAULT branch (main/master, never a task branch — and the
+#      exact shape observed live), or a PUBLISHED branch (see 2b). An unpublished NAMED branch
+#      (feat/…, copilot/…, a review checkout) may be someone's working context even when clean
+#      and absorbed, and `.claude/worktrees/<name>` belongs to the session that created it, so
+#      that keeps the original refusal. This is a standing promise pinned by
+#      tests/test_agent_worktree_freshness.sh, which requires an `unexpected-branch` worktree to
+#      survive byte-for-byte;
 #   1. the tree is completely clean (untracked files included: `git switch` would keep them, but
 #      an untracked file is often the session WIP we must not gamble on);
 #   2. HEAD is already an ancestor of the base ref, so the parked branch carries no unique commit;
-#   3. that base was refreshed from origin first — "absorbed" judged against a stale cached ref
-#      is not proof, it is the trap in a different coat.
+#  2b. …OR the branch is PUBLISHED — `origin/<current>` exists at exactly this commit. Added
+#      2026-08-07: (0)+(2) together made the refusal terminal for the ONE shape every closing
+#      session actually leaves behind — a pushed task branch with an open PR, which is named AND
+#      carries commits not in main. seo-ops sat on `docs/s7-closeout` and leaked seo-ops-2; the
+#      same class had already leaked Nudge-2, AndersJob-2 and NightOwl-2. Published means origin
+#      holds every commit, so leaving the branch here discards nothing — the branch itself
+#      survives untouched, only the worktree's HEAD moves back to wt/<name>;
+#   3. that base was refreshed from origin first — "absorbed" AND "published" judged against a
+#      stale cached ref is not proof, it is the trap in a different coat.
 # Any one of those unmet → refuse, unchanged. Never silent: a branch change is always announced.
 _cc_restore_parked_worktree() {
   local wt_root="$1" repo_root="$2" wt_branch="$3" current="$4"
-  local base base_branch dirty ahead
+  local base base_branch dirty ahead published
   local _preserve="preserving it and refusing reuse"
+  local _why="clean, nothing unique"
 
   base=$(_cc_worktree_base "$repo_root")
   if [[ -z "$base" || "$base" == HEAD ]]; then
@@ -436,11 +445,6 @@ _cc_restore_parked_worktree() {
     return 1
   fi
   base_branch="${base#origin/}"
-  if [[ "$current" != HEAD && "$current" != "$base_branch" ]]; then
-    printf 'cc: ⚠ %s is on %s, expected %s — %s (a named branch may be another session'"'"'s context).\n' \
-      "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
-    return 1
-  fi
 
   dirty=$(git -C "$wt_root" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   if [[ "${dirty:-1}" -ne 0 ]]; then
@@ -459,17 +463,48 @@ _cc_restore_parked_worktree() {
     fi
   fi
 
+  # PUBLISHED: this branch name exists on origin AT THIS EXACT COMMIT, so the parked work is
+  # handed off rather than private, and leaving it here discards nothing — origin holds it.
+  # Judged only AFTER the fetch above, for the same reason as (3): a published/absorbed verdict
+  # read off a stale cache is the staleness trap wearing another coat.
+  #
+  # "HEAD is reachable from SOME remote ref" is deliberately NOT the test, though it looks like
+  # the natural one. A local-only branch cut from origin/main is reachable from origin/main too
+  # — and that is exactly the `unexpected-branch` fixture that
+  # tests/test_agent_worktree_freshness.sh requires to survive byte-for-byte. Reachability proves
+  # the COMMIT is safe; only a same-name remote branch proves the BRANCH was deliberately
+  # published, which is what separates a finished task branch from someone's review checkout.
+  published=0
+  if [[ "$current" != HEAD ]] \
+     && git -C "$wt_root" rev-parse --verify --quiet "refs/remotes/origin/$current" >/dev/null 2>&1 \
+     && [[ "$(git -C "$wt_root" rev-parse HEAD 2>/dev/null)" \
+           == "$(git -C "$wt_root" rev-parse "refs/remotes/origin/$current" 2>/dev/null)" ]]; then
+    published=1
+  fi
+
+  if [[ "$current" != HEAD && "$current" != "$base_branch" && "$published" -ne 1 ]]; then
+    printf 'cc: ⚠ %s is on %s, expected %s — %s (a named branch may be another session'"'"'s context).\n' \
+      "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
+    return 1
+  fi
+
   if ! git -C "$wt_root" rev-parse --verify --quiet "${base}^{commit}" >/dev/null 2>&1; then
     printf 'cc: ⚠ %s is on %s, expected %s — %s (base ref %s does not resolve).\n' \
       "$wt_root" "$current" "$wt_branch" "$_preserve" "$base" >&2
     return 1
   fi
 
-  if ! git -C "$wt_root" merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
+  # A published branch legitimately carries commits not in base — that is what an open PR IS —
+  # and origin holds every one of them, so the ancestor test is the wrong question for it.
+  if [[ "$published" -ne 1 ]] && ! git -C "$wt_root" merge-base --is-ancestor HEAD "$base" 2>/dev/null; then
     ahead=$(git -C "$wt_root" rev-list --count "$base..HEAD" 2>/dev/null || printf '?')
     printf 'cc: ⚠ %s is on %s, expected %s — %s (%s commit(s) not in %s).\n' \
       "$wt_root" "$current" "$wt_branch" "$_preserve" "$ahead" "$base" >&2
     return 1
+  fi
+
+  if [[ "$published" -eq 1 ]]; then
+    _why="clean, published at origin/$current"
   fi
 
   # Reattach to a surviving wt/<name> rather than recreating it — that branch may carry earlier
@@ -481,16 +516,16 @@ _cc_restore_parked_worktree() {
         "$wt_root" "$current" "$wt_branch" "$_preserve" >&2
       return 1
     fi
-    printf 'cc: %s was parked on %s (clean, nothing unique) — restored to existing %s.\n' \
-      "$wt_root" "$current" "$wt_branch" >&2
+    printf 'cc: %s was parked on %s (%s) — restored to existing %s.\n' \
+      "$wt_root" "$current" "$_why" "$wt_branch" >&2
   else
     if ! git -C "$wt_root" switch -q -c "$wt_branch" "$base" 2>/dev/null; then
       printf 'cc: ⚠ %s is on %s and %s could not be created off %s — %s.\n' \
         "$wt_root" "$current" "$wt_branch" "$base" "$_preserve" >&2
       return 1
     fi
-    printf 'cc: %s was parked on %s (clean, nothing unique) — restored to %s off %s.\n' \
-      "$wt_root" "$current" "$wt_branch" "$base" >&2
+    printf 'cc: %s was parked on %s (%s) — restored to %s off %s.\n' \
+      "$wt_root" "$current" "$_why" "$wt_branch" "$base" >&2
   fi
   return 0
 }

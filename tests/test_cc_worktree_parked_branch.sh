@@ -174,6 +174,62 @@ out=$(ensure "$REPO" "00_SYSTEM/Foo" "Healthy" 2>"$WORK/err7b"); rc="${out%%|*}"
 grep -qi 'restor' "$WORK/err7b" \
   && fail "healthy reuse: announced a restore it did not perform"
 
+# --- cases 8-9: a PUBLISHED task branch — the shape every closing session actually leaves -----
+# Rules 0 and 2 together made the refusal TERMINAL for the one shape that recurs in practice: a
+# named branch, pushed, carrying commits not in main (i.e. an open PR). Observed 2026-08-07 —
+# seo-ops sat on `docs/s7-closeout` and leaked seo-ops-2; Nudge-2, AndersJob-2 and NightOwl-2 were
+# the same class. Needs a real remote to distinguish published from local-only, so its own fixture.
+REMOTE="$WORK/remote.git"
+PUB="$WORK/pub"
+git init -q --bare -b main "$REMOTE"
+git clone -q "$REMOTE" "$PUB" 2>/dev/null
+git -C "$PUB" config user.name "Test User"
+git -C "$PUB" config user.email "test@example.com"
+mkdir -p "$PUB/00_SYSTEM/Foo"
+printf 'hello\n' > "$PUB/00_SYSTEM/Foo/README.md"
+git -C "$PUB" add -A
+git -C "$PUB" commit -qm "initial"
+git -C "$PUB" push -q -u origin main
+
+# case 8: pushed task branch with an UNMERGED commit -> self-heal, and the branch must survive.
+ensure "$PUB" "" "Pub" >/dev/null 2>&1
+PUBWT="$PUB/.claude/worktrees/Pub"
+git -C "$PUBWT" switch -q -c docs/task
+printf 'closeout\n' > "$PUBWT/CLOSEOUT.md"
+git -C "$PUBWT" add -A
+git -C "$PUBWT" commit -qm "docs: session closeout"
+git -C "$PUBWT" push -q origin docs/task
+task_sha=$(git -C "$PUBWT" rev-parse HEAD)
+# The whole point of the case: it is NOT absorbed, so rule 2 alone would refuse it forever.
+git -C "$PUBWT" merge-base --is-ancestor HEAD origin/main 2>/dev/null \
+  && fail "fixture: docs/task should carry a commit not in main"
+out=$(ensure "$PUB" "" "Pub" 2>"$WORK/err8"); rc="${out%%|*}"
+[ "$rc" = "0" ] \
+  || fail "parked on a PUBLISHED task branch: expected self-heal rc=0, got rc=$rc ($(tr '\n' ' ' < "$WORK/err8"))"
+[ "$(branch_of "$PUBWT")" = "wt/Pub" ] \
+  || fail "parked on a published branch: expected wt/Pub, got $(branch_of "$PUBWT")"
+[ "$(git -C "$PUB" rev-parse docs/task 2>/dev/null)" = "$task_sha" ] \
+  || fail "parked on a published branch: docs/task was moved or destroyed — the branch must survive"
+[ -f "$PUB/.claude/worktrees/Pub/00_SYSTEM/Foo/README.md" ] \
+  || fail "parked on a published branch: project files missing after self-heal"
+grep -qi 'publish' "$WORK/err8" \
+  || fail "parked on a published branch: restore did not announce WHY it was safe"
+
+# case 9: same branch name on origin, but the local tip is AHEAD of it -> the extra commit exists
+# nowhere but here, so "published" must be judged on the exact SHA, never on the name.
+ensure "$PUB" "" "Ahead2" >/dev/null 2>&1
+AWT="$PUB/.claude/worktrees/Ahead2"
+git -C "$AWT" switch -q -c docs/partly
+git -C "$AWT" commit -q --allow-empty -m "pushed"
+git -C "$AWT" push -q origin docs/partly
+git -C "$AWT" commit -q --allow-empty -m "NOT pushed"
+tip=$(git -C "$AWT" rev-parse HEAD)
+out=$(ensure "$PUB" "" "Ahead2" 2>"$WORK/err9"); rc="${out%%|*}"
+[ "$rc" != "0" ] \
+  || fail "published NAME but unpushed tip: expected refusal, got rc=0 — the extra commit would be orphaned"
+[ "$(git -C "$AWT" rev-parse HEAD)" = "$tip" ] \
+  || fail "published NAME but unpushed tip: HEAD moved off the only ref holding that commit"
+
 if [ "$fails" -ne 0 ]; then
   echo "cc parked-branch tests FAILED ($fails)" >&2
   exit 1

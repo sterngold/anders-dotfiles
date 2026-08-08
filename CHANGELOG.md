@@ -8,6 +8,13 @@ based on [Conventional Commits](https://www.conventionalcommits.org/). Do not ed
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.8](https://github.com/sterngold/anders-dotfiles/compare/v1.19.7...v1.19.8) (2026-08-08)
+
+
+### Bug Fixes
+
+* **cc:** un-park a session worktree whose branch is published ([#85](https://github.com/sterngold/anders-dotfiles/issues/85)) ([71e9ab0](https://github.com/sterngold/anders-dotfiles/commit/71e9ab0c16ab2ca96a1573a6668daa14535abd97))
+
 ## [1.19.7](https://github.com/sterngold/anders-dotfiles/compare/v1.19.6...v1.19.7) (2026-08-05)
 
 
